@@ -1,0 +1,30 @@
+name: push-poller
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: push-poller
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - name: Poll during game windows
+        env:
+          POLL_SECRET: ${{ secrets.POLL_SECRET }}
+        run: |
+          BASE="https://cc-tracker-steel.vercel.app/api/poll"
+          CHECK=$(curl -sf "$BASE?mode=check" -H "Authorization: Bearer $POLL_SECRET" || echo '{}')
+          echo "check: $CHECK"
+          if [[ "$CHECK" != *'"active":true'* ]]; then echo "No game window. Exiting."; exit 0; fi
+          END=$((SECONDS + 1500))
+          while (( SECONDS < END )); do
+            OUT=$(curl -sf "$BASE" -H "Authorization: Bearer $POLL_SECRET" || echo '{}')
+            echo "$(date -u +%T) $OUT"
+            if [[ "$OUT" == *'"active":false'* ]]; then echo "Window closed."; exit 0; fi
+            sleep 60
+          done
