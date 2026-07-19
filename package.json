@@ -1,0 +1,26 @@
+{
+  "name": "cc-tracker",
+  "version": "1.0.0",
+  "description": "A live, single-page Indiana Fever game tracker with a dedicated Caitlin Clark section. Built in the spirit of [Fly the W](https://github.com/jrsherlock/fly-the-w): one static page, no build step, no dependencies, live public-API data.",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jrsherlock/CC-Tracker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/jrsherlock/CC-Tracker/issues"
+  },
+  "homepage": "https://github.com/jrsherlock/CC-Tracker#readme",
+  "private": true,
+  "dependencies": {
+    "@vercel/blob": "^2.6.1",
+    "web-push": "^3.6.7"
+  }
+}
