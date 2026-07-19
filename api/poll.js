@@ -168,6 +168,23 @@ async function loadSubs() {
 export default async function handler(req, res) {
   if (!authorized(req)) return res.status(401).json({ error: 'unauthorized' });
   const now = Date.now();
+
+  if (req.query && req.query.mode === 'test') {
+    webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:jsherlock@cybercade.com',
+      process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+    const subs = await loadSubs();
+    let sent = 0, pruned = 0;
+    for (const s of subs) {
+      try {
+        await webpush.sendNotification(s.sub, JSON.stringify({ title: '🔔 Test alert', body: 'Push notifications are working. Go Fever!', url: '/#game', tag: 'test' }));
+        sent++;
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) { await del(s.url).catch(() => {}); pruned++; }
+      }
+    }
+    return res.status(200).json({ mode: 'test', subscribers: subs.length, sent, pruned });
+  }
+
   const games = parseScheduleLite(await getJSON(SCHEDULE_URL));
 
   if (req.query && req.query.mode === 'check') {
