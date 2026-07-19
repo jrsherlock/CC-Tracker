@@ -300,6 +300,145 @@ function clarkBoxLine(sum) {
 
 function focusIdOf() { return (S.live || S.last)?.id ?? null; }
 
+/* ---------------------------------------------------------- shot chart */
+const SHOT = { mode: 'game', season: null, loading: false };
+
+function parseClarkShots(sum) {
+  const out = [];
+  for (const p of sum?.plays || []) {
+    const t = p.text || '';
+    if (!p.shootingPlay || !/^Caitlin Clark (makes|misses)/.test(t) || /free throw/i.test(t)) continue;
+    const c = p.coordinate || {};
+    if (!(c.x >= 0 && c.x <= 50 && c.y >= -6 && c.y <= 45)) continue;   // free throws carry sentinel garbage
+    out.push({ x: c.x, y: c.y, made: !!p.scoringPlay, three: /three point/i.test(t), period: p.period?.number || 0, text: t });
+  }
+  return out;
+}
+
+/* Court units (verified vs live data): x 0–50 across, rim center (25,0),
+   y = feet up-court from the rim plane, baseline at y=-5.25. */
+function renderShotChart(shots, sub) {
+  const wrap = $('#shotchart');
+  $('#shotchart-sub').textContent = sub;
+  if (!shots) { wrap.innerHTML = `<p class="err-note">Shot data unavailable.</p>`; return; }
+  if (!shots.length) { wrap.innerHTML = `<p class="err-note">Shots will appear at tipoff.</p>`; return; }
+
+  const W = 640, padL = 10, padR = 10, padT = 12, padB = 6;
+  const iw = W - padL - padR;
+  const k = iw / 50;                                  // equal px-per-foot on both axes
+  const Y0 = -5.5, Y1 = 33;
+  const ih = (Y1 - Y0) * k;
+  const H = ih + padT + padB;
+  const px = (x) => padL + x * k;
+  const py = (y) => padT + (y - Y0) * k;              // baseline at top, deep shots at bottom
+
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' });
+  const LINE = 'oklch(0.32 0.045 262)';
+  const courtLine = (attrs) => svgEl('line', { stroke: LINE, 'stroke-width': 1.5, ...attrs }, svg);
+  const arc = (x1, y1, r, x2, y2, sweep) =>
+    svgEl('path', { d: `M ${px(x1).toFixed(1)} ${py(y1).toFixed(1)} A ${(r * k).toFixed(1)} ${(r * k).toFixed(1)} 0 0 ${sweep} ${px(x2).toFixed(1)} ${py(y2).toFixed(1)}`, fill: 'none', stroke: LINE, 'stroke-width': 1.5 }, svg);
+
+  courtLine({ x1: px(0), y1: py(-5.25), x2: px(50), y2: py(-5.25) });          // baseline
+  courtLine({ x1: px(0), y1: py(-5.25), x2: px(0), y2: py(Y1) });              // sidelines
+  courtLine({ x1: px(50), y1: py(-5.25), x2: px(50), y2: py(Y1) });
+  svgEl('rect', { x: px(17), y: py(-5.25), width: 16 * k, height: 19 * k, fill: 'none', stroke: LINE, 'stroke-width': 1.5 }, svg);  // lane
+  svgEl('circle', { cx: px(25), cy: py(13.75), r: 6 * k, fill: 'none', stroke: LINE, 'stroke-width': 1.5 }, svg);                    // FT circle
+  courtLine({ x1: px(22), y1: py(-1.25), x2: px(28), y2: py(-1.25) });         // backboard
+  svgEl('circle', { cx: px(25), cy: py(0), r: 0.75 * k, fill: 'none', stroke: LINE, 'stroke-width': 1.5 }, svg);                     // rim
+  arc(21, 0, 4, 29, 0, 0);                                                     // restricted area
+  courtLine({ x1: px(3), y1: py(-5.25), x2: px(3), y2: py(2.57) });            // 3pt corners + arc (r 22.15)
+  courtLine({ x1: px(47), y1: py(-5.25), x2: px(47), y2: py(2.57) });
+  arc(3, 2.57, 22.15, 47, 2.57, 0);
+
+  const tip = $('#shotchart-tip');
+  const banner = wrap.closest('.chart-banner');
+  const dense = shots.length > 60;                    // season view: smaller marks, less rim overplot
+  const rMake = dense ? 5.5 : 9, rMiss = dense ? 5 : 8, wMiss = dense ? 2 : 2.5;
+  const marks = [];
+  for (const s of shots) {
+    const cx = px(s.x), cy = py(Math.min(s.y, Y1 - 0.8));
+    const mark = s.made
+      ? svgEl('circle', { cx, cy, r: rMake, fill: '#bc8a06', stroke: 'oklch(0.15 0.045 262)', 'stroke-width': 2 }, svg)
+      : svgEl('circle', { cx, cy, r: rMiss, fill: 'none', stroke: '#6890d6', 'stroke-width': wMiss }, svg);
+    const hit = svgEl('circle', { cx, cy, r: dense ? 10 : 16, fill: 'transparent' }, svg);  // enlarged hit target
+    marks.push([hit, mark, s]);
+  }
+  wrap.innerHTML = '';
+  wrap.appendChild(svg);
+
+  for (const [hit, mark, s] of marks) {
+    const show = (ev) => {
+      const pt = ev.touches ? ev.touches[0] : ev;
+      tip.innerHTML = `${periodLabel(s.period)} · <b>${s.made ? 'Made' : 'Missed'}${s.three ? ' 3PT' : ''}</b><br>${esc(s.text)}`;
+      tip.hidden = false;
+      const bRect = banner.getBoundingClientRect();
+      tip.style.left = `${Math.min(bRect.width - 200, Math.max(6, pt.clientX - bRect.left - 60))}px`;
+      tip.style.top = `${pt.clientY - bRect.top - 64}px`;
+      mark.setAttribute('stroke-width', s.made ? 3.5 : 4);
+    };
+    const hide = () => { tip.hidden = true; mark.setAttribute('stroke-width', s.made ? 2 : wMiss); };
+    hit.addEventListener('pointerenter', show);
+    hit.addEventListener('pointermove', show);
+    hit.addEventListener('pointerleave', hide);
+  }
+}
+
+function shotStats(shots) {
+  const made = shots.filter(s => s.made).length;
+  const pct = shots.length ? Math.round(made / shots.length * 100) : 0;
+  return `${made}-${shots.length} FG · ${pct}%`;
+}
+
+function renderShotGame() {
+  if (SHOT.mode !== 'game') return;
+  const focus = S.live || S.last;
+  if (!S.summary || !focus) { renderShotChart(null, '—'); return; }
+  const shots = parseClarkShots(S.summary);
+  const label = S.live ? 'Live' : 'Last game';
+  $('#shot-mode-game').textContent = label;
+  renderShotChart(shots, `${label} · ${focus.home ? 'vs' : 'at'} ${focus.opp.abbr} · ${shotStats(shots)}`);
+}
+
+async function loadSeasonShots() {
+  let cache = {};
+  try { cache = JSON.parse(localStorage.getItem('cc-shots-v1') || '{}'); } catch { cache = {}; }
+  const done = S.games.filter(g => g.state === 'post');
+  const missing = done.filter(g => !cache[g.id]);
+  let n = 0;
+  for (let i = 0; i < missing.length; i += 4) {
+    await Promise.all(missing.slice(i, i + 4).map(async (g) => {
+      try { cache[g.id] = parseClarkShots(await getJSON(API.summary(g.id))); } catch { /* retry next time */ }
+      n++;
+      $('#shotchart-sub').textContent = `Loading season… ${n}/${missing.length}`;
+    }));
+  }
+  try { localStorage.setItem('cc-shots-v1', JSON.stringify(cache)); } catch { /* storage full: still render */ }
+  const shots = done.flatMap(g => cache[g.id] || []);
+  return { shots, games: done.filter(g => (cache[g.id] || []).length).length };
+}
+
+function initShotChart() {
+  const btnGame = $('#shot-mode-game'), btnSeason = $('#shot-mode-season');
+  const setMode = (mode) => {
+    SHOT.mode = mode;
+    btnGame.classList.toggle('is-active', mode === 'game');
+    btnSeason.classList.toggle('is-active', mode === 'season');
+    btnGame.setAttribute('aria-pressed', String(mode === 'game'));
+    btnSeason.setAttribute('aria-pressed', String(mode === 'season'));
+  };
+  btnGame.addEventListener('click', () => { setMode('game'); renderShotGame(); });
+  btnSeason.addEventListener('click', async () => {
+    setMode('season');
+    if (SHOT.season) { renderShotChart(SHOT.season.shots, `${SHOT.season.games} games · ${shotStats(SHOT.season.shots)}`); return; }
+    if (SHOT.loading) return;
+    SHOT.loading = true;
+    try {
+      SHOT.season = await loadSeasonShots();
+      if (SHOT.mode === 'season') renderShotChart(SHOT.season.shots, `${SHOT.season.games} games · ${shotStats(SHOT.season.shots)}`);
+    } finally { SHOT.loading = false; }
+  });
+}
+
 /* ---------------------------------------------------------- momentum worm */
 function renderWorm() {
   const sum = S.summary;
@@ -751,6 +890,7 @@ async function loadSummary() {
   S.summary = await getJSON(API.summary(id));
   renderHeroDetail();
   renderWorm();
+  renderShotGame();
 }
 
 async function loadClark() {
@@ -898,6 +1038,7 @@ function initPushUI(reg) {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').then(initPushUI).catch((e) => console.error('[cc-tracker] sw', e));
   }
+  initShotChart();
   await refreshCore();
   refreshSlow();
   startPolling();

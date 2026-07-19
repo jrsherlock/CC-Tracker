@@ -467,6 +467,25 @@ main { position: relative; z-index: 1; }
 .chart-tip b { color: var(--gold); }
 .chart-banner { position: relative; }
 
+/* shot chart */
+.shot-controls { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.shot-toggle { display: inline-flex; gap: 0.3rem; }
+.shot-mode {
+  font-family: var(--font-label); font-weight: 600;
+  font-size: 0.68rem; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--chalk-dim); background: none; cursor: pointer;
+  border: 1px solid var(--banner-edge); border-radius: 999px;
+  padding: 0.26rem 0.7rem;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.shot-mode:hover, .shot-mode:focus-visible { color: var(--gold); border-color: var(--gold-deep); }
+.shot-mode.is-active { color: oklch(0.2 0.05 262); background: var(--gold); border-color: var(--gold-deep); box-shadow: 0 2px 0 var(--gold-shadow); }
+.shot-legend { margin-bottom: 0; }
+.lg-make::before { background: var(--mark-gold); border-radius: 50%; }
+.lg-miss::before { background: transparent; border: 2px solid var(--mark-blue); border-radius: 50%; width: 8px; height: 8px; }
+.shotchart { position: relative; max-width: 520px; margin-inline: auto; }
+.shotchart svg { display: block; width: 100%; height: auto; }
+
 .worm { position: relative; }
 .worm svg { display: block; width: 100%; height: auto; }
 .worm-legend { display: flex; gap: 1.1rem; margin-bottom: 0.35rem; }

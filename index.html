@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Graduate&family=Saira+Condensed:wght@500;600;700&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Red+Hat+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=5" />
+  <link rel="stylesheet" href="styles.css?v=6" />
 </head>
 <body data-palette="#BC8A06,#6890D6,#DE4A3E">
 
@@ -97,6 +97,25 @@
           <div class="ptschart" id="ptschart" role="img" aria-label="Caitlin Clark points per game, recent games"></div>
         </div>
         <div class="chart-tip" id="ptschart-tip" hidden></div>
+      </div>
+
+      <div class="banner chart-banner">
+        <div class="chart-head">
+          <h4 class="chart-title">Shot chart</h4>
+          <p class="chart-sub" id="shotchart-sub">—</p>
+        </div>
+        <div class="shot-controls">
+          <div class="shot-toggle" role="group" aria-label="Shot chart range">
+            <button class="shot-mode is-active" id="shot-mode-game" aria-pressed="true">Last game</button>
+            <button class="shot-mode" id="shot-mode-season" aria-pressed="false">Season</button>
+          </div>
+          <div class="worm-legend shot-legend" aria-hidden="true">
+            <span class="lg lg-make">Make</span>
+            <span class="lg lg-miss">Miss</span>
+          </div>
+        </div>
+        <div class="shotchart" id="shotchart" role="img" aria-label="Caitlin Clark shot chart"></div>
+        <div class="chart-tip" id="shotchart-tip" hidden></div>
       </div>
 
       <div class="ledger" id="clark-ledger"></div>
@@ -193,6 +212,6 @@
   </div>
   <div class="toast" id="push-toast" hidden></div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
