@@ -13,6 +13,27 @@ A live, single-page Indiana Fever game tracker with a dedicated Caitlin Clark se
 
 Mobile-first throughout: sticky section nav, scroll-snap news rail, safe-area padding, battery-friendly polling that pauses when the tab is hidden.
 
+## PWA + game-day alerts
+
+The site is an installable PWA: add it to your home screen (Android/desktop get an
+Install chip; iOS uses Share → Add to Home Screen) and it launches standalone with
+offline support — the service worker keeps the shell and last-known scores.
+
+Tap the bell in the top bar to opt into push alerts (on iOS 16.4+ this works only
+from the installed home-screen app):
+
+- **Tipoff soon** — ~30 minutes before the Fever tip.
+- **Clutch alert** — Q4/OT, margin ≤5, under 5:00 to play.
+- **Triple-double watch** — Clark at 8+ points, rebounds, and assists live.
+- **Final** — score, W/L, and Clark's line.
+
+How it works: `api/subscribe.js` stores push subscriptions (AES-256-GCM-encrypted
+at rest) in Vercel Blob; a GitHub Actions cron (`.github/workflows/push-poller.yml`)
+wakes every 30 minutes, and during game windows pings `api/poll.js` each minute,
+which reads the same ESPN endpoints, decides alerts (pure, unit-tested logic in
+`api/poll.js`, tests in `tests/`), and fans out via Web Push with VAPID. Alert
+dedupe state lives in Blob too, so each alert fires once per game.
+
 ## Run locally
 
 Any static server works:
@@ -24,7 +45,8 @@ python3 -m http.server 8000
 
 ## Tech
 
-- Vanilla HTML / CSS / JS — no build step, no dependencies.
+- Vanilla HTML / CSS / JS front end — no build step, no dependencies. The only
+  server code is two Vercel Functions in `api/` (`web-push` + `@vercel/blob`).
 - Data from the public ESPN API (team schedule, game summaries with play-by-play and boxscores, standings, news, and athlete stat endpoints), fetched client-side.
 - Hand-rolled SVG charts. Chart colors validated for contrast and color-vision-deficiency separation against the navy surface.
 - Graduate + Saira Condensed + Archivo + Red Hat Mono via Google Fonts.
