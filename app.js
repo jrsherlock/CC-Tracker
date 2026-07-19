@@ -129,13 +129,13 @@ function classifyGames() {
 /* ---------------------------------------------------------- hero */
 function heroMatchupHTML(g, scores) {
   const showScores = !!scores;
-  const fs = showScores ? Number(g.feverScore) : null;
-  const os = showScores ? Number(g.oppScore) : null;
+  const fs = Number(g.feverScore ?? 0);
+  const os = Number(g.oppScore ?? 0);
   return `
   <div class="matchup">
     <div class="team-side">
       <img class="team-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/ind.png" alt="Indiana Fever" />
-      ${showScores ? `<div class="team-score ${fs >= os ? 'leads' : ''}">${esc(g.feverScore)}</div>` : ''}
+      ${showScores ? `<div class="team-score ${fs >= os ? 'leads' : ''}" id="hero-score-fever">${esc(g.feverScore ?? '–')}</div>` : ''}
       <div class="team-abbr is-fever">IND</div>
     </div>
     <div class="mid-col">
@@ -144,7 +144,7 @@ function heroMatchupHTML(g, scores) {
     </div>
     <div class="team-side">
       <img class="team-logo" src="${esc(g.opp.logo)}" alt="${esc(g.opp.name)}" />
-      ${showScores ? `<div class="team-score ${os > fs ? 'leads' : ''}">${esc(g.oppScore)}</div>` : ''}
+      ${showScores ? `<div class="team-score ${os >= fs ? 'leads' : ''}" id="hero-score-opp">${esc(g.oppScore ?? '–')}</div>` : ''}
       <div class="team-abbr">${esc(g.opp.abbr)}</div>
     </div>
   </div>`;
@@ -225,6 +225,20 @@ function renderHeroDetail() {
   const clockEl = $('#mid-clock');
   if (clockEl && S.live && st) {
     clockEl.textContent = st.type?.shortDetail || `${periodLabel(st.period || 1)} ${st.displayClock || ''}`;
+  }
+
+  // authoritative scores from summary (schedule omits them mid-game)
+  const fevC = comp?.competitors?.find(c => String(c.team?.id) === FEVER_ID);
+  const oppC = comp?.competitors?.find(c => c !== fevC && c.team);
+  const fEl = $('#hero-score-fever'), oEl = $('#hero-score-opp');
+  if (fEl && oEl && fevC?.score != null && oppC?.score != null) {
+    const fs = Number(fevC.score), os = Number(oppC.score);
+    fEl.textContent = fevC.score;
+    oEl.textContent = oppC.score;
+    fEl.classList.toggle('leads', fs >= os);
+    oEl.classList.toggle('leads', os >= fs);
+    focus.feverScore = fevC.score;
+    focus.oppScore = oppC.score;
   }
 
   // last play
