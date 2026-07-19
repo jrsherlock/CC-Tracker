@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { put, del, list } from '@vercel/blob';
+import { sealJSON } from '../lib/pushcrypto.js';
 
 const MAX_BODY = 4096;
 
@@ -19,7 +20,7 @@ export default async function handler(req, res) {
     const sub = req.body;
     if (!validSubscription(sub)) return res.status(400).json({ error: 'invalid subscription' });
     await put(keyFor(sub.endpoint),
-      JSON.stringify({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, created: Date.now() }),
+      sealJSON({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, created: Date.now() }),
       { access: 'public', addRandomSuffix: false, contentType: 'application/json', allowOverwrite: true });
     return res.status(201).json({ ok: true });
   }

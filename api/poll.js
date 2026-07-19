@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { put, del, list } from '@vercel/blob';
 import webpush from 'web-push';
+import { openJSON } from '../lib/pushcrypto.js';
 
 const FEVER_ID = '5';
 const CLARK_ID = '4433403';
@@ -137,7 +138,7 @@ async function getJSON(url) {
 
 function authorized(req) {
   const secret = process.env.POLL_SECRET || '';
-  const given = ((req.headers.authorization || '').replace(/^Bearer\s+/i, '')) || String((req.query && req.query.key) || '');
+  const given = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   const a = Buffer.from(given), b = Buffer.from(secret);
   return secret.length > 0 && a.length === b.length && timingSafeEqual(a, b);
 }
@@ -158,7 +159,7 @@ async function loadSubs() {
   const { blobs } = await list({ prefix: 'subs/' });
   const subs = [];
   for (const b of blobs) {
-    try { subs.push({ url: b.url, sub: await (await fetch(b.url, { cache: 'no-store' })).json() }); }
+    try { subs.push({ url: b.url, sub: openJSON(await (await fetch(b.url, { cache: 'no-store' })).text()) }); }
     catch { /* skip unreadable */ }
   }
   return subs;

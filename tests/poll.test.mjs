@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decideAlerts, computeActive, summaryFacts, parseScheduleLite } from '../api/poll.js';
 import { validSubscription } from '../api/subscribe.js';
+import { sealJSON, openJSON } from '../lib/pushcrypto.js';
+import { randomBytes } from 'node:crypto';
 
 const MIN = 60000, H = 3600e3;
 const T0 = Date.parse('2026-07-19T23:00:00Z');
@@ -69,6 +71,17 @@ test('parseScheduleLite maps ESPN events', () => {
   const data = { events: [{ id: '9', date: '2026-07-19T23:00:00Z', competitions: [{ status: { type: { state: 'pre', completed: false } }, competitors: [{ team: { id: '5', abbreviation: 'IND' }, homeAway: 'home' }, { team: { id: '9', abbreviation: 'CHI', shortDisplayName: 'Sky' }, homeAway: 'away' }], broadcasts: [{ media: { shortName: 'ION' } }] }] }] };
   const [g] = parseScheduleLite(data);
   assert.deepEqual([g.id, g.state, g.home, g.oppAbbr, g.broadcast], ['9', 'pre', true, 'CHI', 'ION']);
+});
+
+test('sealJSON/openJSON round-trips and rejects tampering', () => {
+  const key = randomBytes(32);
+  const obj = { endpoint: 'https://fcm.googleapis.com/x', keys: { p256dh: 'a', auth: 'b' } };
+  const sealed = sealJSON(obj, key);
+  assert.ok(!sealed.includes('fcm.googleapis.com'));
+  assert.deepEqual(openJSON(sealed, key), obj);
+  const bad = JSON.parse(sealed);
+  bad.ct = bad.ct.slice(0, -4) + 'AAAA';
+  assert.throws(() => openJSON(JSON.stringify(bad), key));
 });
 
 test('validSubscription accepts real shape, rejects junk', () => {
