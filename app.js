@@ -644,12 +644,21 @@ function renderGameLists() {
 }
 
 /* ---------------------------------------------------------- standings */
+/* matchers are checked in priority order — ESPN lists near-miss stats
+   (e.g. leagueWinPercent) before the one we want (winPercent) */
 function statOf(entry, matchers) {
-  for (const s of entry.stats || []) {
-    const hay = [s.name, s.type, s.abbreviation, s.shortDisplayName].map(v => String(v || '').toLowerCase());
-    if (matchers.some(m => hay.includes(m))) return s.displayValue ?? s.value ?? '—';
+  for (const m of matchers) {
+    for (const s of entry.stats || []) {
+      const hay = [s.name, s.type, s.abbreviation, s.shortDisplayName].map(v => String(v || '').toLowerCase());
+      if (hay.includes(m)) return s.displayValue ?? s.value ?? '—';
+    }
   }
   return '—';
+}
+
+function statNum(entry, matchers) {
+  const n = parseFloat(statOf(entry, matchers));
+  return isNaN(n) ? null : n;
 }
 
 function renderStandings(data) {
@@ -657,9 +666,19 @@ function renderStandings(data) {
   const confs = data?.children || [];
   if (!confs.length) { wrap.innerHTML = `<p class="err-note">Standings unavailable.</p>`; return; }
   const order = [...confs].sort((a) => (/east/i.test(a.name) ? -1 : 1));
+  const pctOf = (e) => {
+    const p = statNum(e, ['winpercent']);
+    if (p != null) return p;
+    const w = statNum(e, ['wins']) || 0, l = statNum(e, ['losses']) || 0;
+    return (w + l) ? w / (w + l) : 0;
+  };
   wrap.innerHTML = order.map(conf => {
     const entries = conf.standings?.entries || [];
-    const sorted = [...entries].sort((a, b) => parseFloat(statOf(b, ['winpercent', 'leaguewinpercent'])) - parseFloat(statOf(a, ['winpercent', 'leaguewinpercent'])));
+    const sorted = [...entries].sort((a, b) => {
+      const sa = statNum(a, ['playoffseed']), sb = statNum(b, ['playoffseed']);
+      if (sa != null && sb != null && sa !== sb) return sa - sb;   // ESPN's official order
+      return pctOf(b) - pctOf(a);
+    });
     return `<div class="conf-block">
       <h4 class="conf-label">${esc(conf.name)}</h4>
       <table class="standings-table">
@@ -670,11 +689,11 @@ function renderStandings(data) {
           const isFever = String(t.id) === FEVER_ID;
           return `<tr class="${isFever ? 'is-fever' : ''}">
             <td class="team"><span class="cell"><img src="${esc(teamLogo(t))}" alt="" loading="lazy" /><span>${esc(t.shortDisplayName || t.displayName || '')}</span></span></td>
-            <td>${esc(statOf(e, ['wins', 'w']))}</td>
-            <td>${esc(statOf(e, ['losses', 'l']))}</td>
-            <td>${esc(statOf(e, ['winpercent', 'leaguewinpercent', 'pct']))}</td>
-            <td>${esc(statOf(e, ['gamesbehind', 'gb']))}</td>
-            <td class="st-hide-sm">${esc(statOf(e, ['streak', 'strk']))}</td>
+            <td>${esc(statOf(e, ['wins']))}</td>
+            <td>${esc(statOf(e, ['losses']))}</td>
+            <td>${esc(statOf(e, ['winpercent']) !== '—' ? statOf(e, ['winpercent']) : pctOf(e).toFixed(3))}</td>
+            <td>${esc(statOf(e, ['gamesbehind']))}</td>
+            <td class="st-hide-sm">${esc(statOf(e, ['streak']))}</td>
             <td class="st-hide-sm">${esc(statOf(e, ['l10', 'last ten games', 'lasttengames']))}</td>
           </tr>`;
         }).join('')}
@@ -687,7 +706,7 @@ function renderStandings(data) {
   const east = order.flatMap(c => c.standings?.entries || []);
   const fever = east.find(e => String(e.team?.id) === FEVER_ID);
   if (fever) {
-    const w = statOf(fever, ['wins', 'w']), l = statOf(fever, ['losses', 'l']);
+    const w = statOf(fever, ['wins']), l = statOf(fever, ['losses']);
     if (w !== '—') $('#record-chip').textContent = `${w}–${l}`;
   }
 }
