@@ -813,7 +813,86 @@ function startPolling() {
   });
 }
 
-function initPushUI() {}
+/* ---------------------------------------------------------- push + install */
+const PUSH = { reg: null, deferredPrompt: null };
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+function b64ToU8(b64) {
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const t = $('#push-toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
+}
+
+async function reflectBell() {
+  const bell = $('#bell-btn');
+  let on = false;
+  if (PUSH.reg && 'pushManager' in PUSH.reg) {
+    on = !!(await PUSH.reg.pushManager.getSubscription().catch(() => null));
+  }
+  bell.setAttribute('aria-pressed', String(on));
+  bell.setAttribute('aria-label', on ? 'Game-day alerts on — tap to turn off' : 'Get game-day alerts');
+}
+
+async function onBellTap() {
+  if (isIOS() && !isStandalone()) { $('#ios-sheet').hidden = false; return; }
+  if (!PUSH.reg || !('pushManager' in PUSH.reg) || !('Notification' in window)) {
+    showToast('Push not supported in this browser'); return;
+  }
+  const existing = await PUSH.reg.pushManager.getSubscription().catch(() => null);
+  if (existing) {
+    await existing.unsubscribe().catch(() => {});
+    await fetch('/api/subscribe', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: existing.endpoint }) }).catch(() => {});
+    await reflectBell();
+    showToast('Alerts off');
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { showToast(perm === 'denied' ? 'Notifications are blocked in browser settings' : 'Alerts not enabled'); return; }
+  try {
+    const { publicKey } = await (await fetch('/api/subscribe')).json();
+    if (!publicKey) throw new Error('no key');
+    const sub = await PUSH.reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(publicKey) });
+    const res = await fetch('/api/subscribe', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(sub) });
+    if (!res.ok) throw new Error(`subscribe ${res.status}`);
+    await reflectBell();
+    showToast('Alerts on — see you at tipoff 🏀');
+  } catch (err) {
+    console.error('[cc-tracker] push', err);
+    showToast('Could not enable alerts — try again');
+  }
+}
+
+function initPushUI(reg) {
+  PUSH.reg = reg;
+  const bell = $('#bell-btn');
+  const pushCapable = 'PushManager' in window && 'Notification' in window;
+  if (pushCapable || (isIOS() && !isStandalone())) bell.hidden = false;
+  reflectBell();
+  bell.addEventListener('click', onBellTap);
+  $('#ios-sheet-close').addEventListener('click', () => { $('#ios-sheet').hidden = true; });
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    PUSH.deferredPrompt = e;
+    if (!isStandalone()) $('#install-chip').hidden = false;
+  });
+  $('#install-chip').addEventListener('click', async () => {
+    if (!PUSH.deferredPrompt) return;
+    PUSH.deferredPrompt.prompt();
+    await PUSH.deferredPrompt.userChoice.catch(() => {});
+    PUSH.deferredPrompt = null;
+    $('#install-chip').hidden = true;
+  });
+}
 
 (async function init() {
   if ('serviceWorker' in navigator) {

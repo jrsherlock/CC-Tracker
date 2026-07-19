@@ -34,6 +34,10 @@
         </span>
       </a>
       <div class="topbar-right">
+        <button class="install-chip" id="install-chip" hidden>Install</button>
+        <button class="icon-btn" id="bell-btn" hidden aria-pressed="false" aria-label="Game-day alerts">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 22a2.3 2.3 0 0 0 2.3-2.3h-4.6A2.3 2.3 0 0 0 12 22Zm7-5.5v-1.2l-1.5-1.6V9.6A5.6 5.6 0 0 0 13.6 4.2V3.6a1.6 1.6 0 1 0-3.2 0v.6A5.6 5.6 0 0 0 6.5 9.6v4.1L5 15.3v1.2Z"/></svg>
+        </button>
         <span class="live-flag" id="live-flag" hidden>Live</span>
         <span class="record-chip" id="record-chip" aria-label="Fever record">—</span>
       </div>
@@ -176,6 +180,18 @@
     <p class="foot-line" id="updated-line">· Loading ·</p>
     <p class="foot-note">Not affiliated with the Indiana Fever or the WNBA. Data courtesy of the public ESPN API, refreshed automatically. Built in the spirit of <a href="https://github.com/jrsherlock/fly-the-w">Fly&nbsp;the&nbsp;W</a>.</p>
   </footer>
+
+  <div class="sheet" id="ios-sheet" hidden role="dialog" aria-label="Enable alerts on iPhone">
+    <p class="sheet-title">Get Fever alerts on your iPhone</p>
+    <ol class="sheet-steps">
+      <li>Tap the <b>Share</b> button in Safari</li>
+      <li>Choose <b>Add to Home Screen</b></li>
+      <li>Open <b>CC Tracker</b> from your home screen and tap the bell</li>
+    </ol>
+    <p class="sheet-note">Requires iOS 16.4 or later.</p>
+    <button class="sheet-close" id="ios-sheet-close">Got it</button>
+  </div>
+  <div class="toast" id="push-toast" hidden></div>
 
   <script src="app.js?v=4"></script>
 </body>

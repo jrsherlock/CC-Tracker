@@ -622,6 +622,59 @@ main { position: relative; z-index: 1; }
   padding: 1rem; text-align: center;
 }
 
+/* ============================================================ PUSH + INSTALL */
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 999px;
+  background: var(--banner-deep); color: var(--chalk-dim);
+  border: 1px solid var(--banner-edge); cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.icon-btn:hover, .icon-btn:focus-visible { color: var(--gold); border-color: var(--gold-deep); }
+.icon-btn[aria-pressed="true"] {
+  background: var(--gold); color: oklch(0.2 0.05 262);
+  border-color: var(--gold-deep); box-shadow: 0 2px 0 var(--gold-shadow);
+}
+.install-chip {
+  font-family: var(--font-label); font-weight: 700;
+  font-size: 0.66rem; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--gold); background: none; cursor: pointer;
+  border: 1px solid var(--gold-deep); border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+}
+.sheet {
+  position: fixed; inset-inline: 0; bottom: 0; z-index: 60;
+  background: linear-gradient(180deg, var(--banner), var(--banner-deep));
+  border-top: 3px solid var(--gold-deep);
+  padding: 1.2rem 1.2rem max(1.2rem, env(safe-area-inset-bottom));
+  box-shadow: 0 -14px 30px oklch(0 0 0 / 0.45);
+}
+.sheet-title {
+  font-family: var(--font-label); font-weight: 700; letter-spacing: 0.2em;
+  text-transform: uppercase; font-size: 0.8rem; color: var(--gold);
+  margin-bottom: 0.6rem;
+}
+.sheet-steps { margin: 0 0 0.6rem 1.2rem; font-size: 0.9rem; color: var(--chalk); }
+.sheet-steps li { margin-bottom: 0.3rem; }
+.sheet-steps b { color: var(--gold); }
+.sheet-note { font-family: var(--font-mono); font-size: 0.72rem; color: var(--chalk-faint); margin-bottom: 0.9rem; }
+.sheet-close {
+  font-family: var(--font-label); font-weight: 700; letter-spacing: 0.2em;
+  text-transform: uppercase; font-size: 0.72rem;
+  color: oklch(0.2 0.05 262); background: var(--gold);
+  border: none; border-radius: 999px; padding: 0.45rem 1.2rem; cursor: pointer;
+  box-shadow: 0 2px 0 var(--gold-shadow);
+}
+.toast {
+  position: fixed; left: 50%; bottom: max(1rem, env(safe-area-inset-bottom)); z-index: 70;
+  transform: translateX(-50%);
+  background: oklch(0.13 0.04 262 / 0.97); color: var(--chalk);
+  border: 1px solid var(--banner-edge); border-radius: 999px;
+  font-family: var(--font-mono); font-size: 0.78rem;
+  padding: 0.5rem 1rem; white-space: nowrap;
+  box-shadow: 0 8px 18px oklch(0 0 0 / 0.5);
+}
+
 /* ============================================================ DESKTOP */
 @media (min-width: 720px) {
   .stat-tiles { grid-template-columns: repeat(4, 1fr); }
