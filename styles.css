@@ -361,6 +361,7 @@ main { position: relative; z-index: 1; }
 .pennant span { font-family: var(--font-display); color: var(--gold); font-size: 1.15rem; }
 .clark-portrait-wrap {
   position: relative; align-self: end;
+  aspect-ratio: 3 / 4;               /* holds its shape even if the photo never loads */
   border-radius: var(--radius);
   background:
     radial-gradient(90% 80% at 50% 20%, oklch(0.62 0.11 88 / 0.22), transparent 70%),
@@ -368,7 +369,20 @@ main { position: relative; z-index: 1; }
   border: 1px solid var(--banner-edge);
   overflow: hidden;
 }
-.clark-portrait { transform: translateY(4px) scale(1.06); transform-origin: bottom; }
+.clark-portrait {
+  width: 100%; height: 100%; object-fit: cover; object-position: top;
+  transform: translateY(4px) scale(1.06); transform-origin: bottom;
+}
+.clark-portrait-wrap.no-photo .clark-portrait { display: none; }
+.clark-portrait-wrap.no-photo::after {
+  content: '22';
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 14vw, 5rem);
+  color: var(--gold); opacity: 0.9;
+  text-shadow: 0 2px 0 oklch(0 0 0 / 0.4);
+}
 .clark-id { padding-bottom: 0.2rem; }
 .clark-eyebrow {
   font-family: var(--font-label); font-weight: 600;
