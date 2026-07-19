@@ -67,7 +67,7 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 [hidden] { display: none !important; }
-html { scroll-behavior: smooth; scroll-padding-top: 96px; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(96px + env(safe-area-inset-top, 0px)); }
 
 body {
   background:
@@ -99,6 +99,10 @@ a { color: inherit; }
   background: oklch(0.16 0.045 262 / 0.92);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--arena-line);
+  /* installed-PWA mode extends under the iOS status bar; keep content clear of it */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 .topbar-inner {
   width: var(--pagew); margin: 0 auto;
