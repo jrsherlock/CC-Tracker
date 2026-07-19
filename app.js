@@ -813,7 +813,12 @@ function startPolling() {
   });
 }
 
+function initPushUI() {}
+
 (async function init() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then(initPushUI).catch((e) => console.error('[cc-tracker] sw', e));
+  }
   await refreshCore();
   refreshSlow();
   startPolling();
