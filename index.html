@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>CC Tracker · Indiana Fever</title>
+  <meta name="description" content="Live Indiana Fever scoreboard, standings, momentum and a Caitlin Clark tracker. Scores and stats refresh automatically from the public ESPN API." />
+  <meta name="theme-color" content="#0b1830" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <meta property="og:title" content="CC Tracker · Indiana Fever" />
+  <meta property="og:description" content="Live Fever scoreboard, standings, momentum, and everything Caitlin Clark." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Graduate&family=Saira+Condensed:wght@500;600;700&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Red+Hat+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=1" />
+</head>
+<body data-palette="#BC8A06,#6890D6,#DE4A3E">
+
+  <!-- ======================= TOP BAR ======================= -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#top" aria-label="CC Tracker home">
+        <img class="brand-logo" src="https://a.espncdn.com/i/teamlogos/wnba/500/ind.png" alt="" width="34" height="34" />
+        <span class="brand-stack">
+          <span class="brand-name">CC&nbsp;Tracker</span>
+          <span class="brand-sub">Indiana Fever</span>
+        </span>
+      </a>
+      <div class="topbar-right">
+        <span class="live-flag" id="live-flag" hidden>Live</span>
+        <span class="record-chip" id="record-chip" aria-label="Fever record">—</span>
+      </div>
+    </div>
+    <nav class="secnav" aria-label="Sections">
+      <a href="#game">Game</a>
+      <a href="#clark">Clark&nbsp;22</a>
+      <a href="#momentum">Momentum</a>
+      <a href="#games">Schedule</a>
+      <a href="#standings">Standings</a>
+      <a href="#news">Highlights</a>
+    </nav>
+  </header>
+
+  <main id="top">
+
+    <!-- ======================= HERO / GAME ======================= -->
+    <section id="game" class="section section-hero" aria-label="Game center">
+      <div class="hero-card banner" id="hero-card">
+        <div class="skeleton skel-hero" aria-hidden="true"></div>
+      </div>
+      <div class="court-strip" aria-hidden="true"><span class="court-line"></span></div>
+    </section>
+
+    <!-- ======================= CAITLIN CLARK ======================= -->
+    <section id="clark" class="section" aria-label="Caitlin Clark tracker">
+      <div class="section-head">
+        <h2 class="painted">Clark Watch</h2>
+        <span class="head-rule" aria-hidden="true"></span>
+      </div>
+
+      <div class="clark-hero">
+        <div class="pennant" aria-hidden="true"><span>22</span></div>
+        <div class="clark-portrait-wrap">
+          <img class="clark-portrait" src="https://a.espncdn.com/i/headshots/wnba/players/full/4433403.png" alt="Caitlin Clark headshot" loading="lazy" />
+        </div>
+        <div class="clark-id">
+          <p class="clark-eyebrow">No. 22 · Guard · Indiana Fever</p>
+          <h3 class="clark-name">Caitlin<br />Clark</h3>
+          <p class="clark-meta" id="clark-meta">—</p>
+        </div>
+      </div>
+
+      <div class="stat-tiles" id="clark-tiles">
+        <div class="skeleton skel-tiles" aria-hidden="true"></div>
+      </div>
+
+      <div class="banner lastgame-banner" id="clark-lastgame" hidden></div>
+
+      <div class="banner chart-banner">
+        <div class="chart-head">
+          <h4 class="chart-title">Points · game by game</h4>
+          <p class="chart-sub" id="ptschart-sub">2026 regular season</p>
+        </div>
+        <div class="chart-scroll">
+          <div class="ptschart" id="ptschart" role="img" aria-label="Caitlin Clark points per game, recent games"></div>
+        </div>
+        <div class="chart-tip" id="ptschart-tip" hidden></div>
+      </div>
+
+      <div class="ledger" id="clark-ledger"></div>
+
+      <details class="gamelog-details">
+        <summary>Full game log · last 10</summary>
+        <div class="table-scroll">
+          <table class="gamelog-table" id="gamelog-table">
+            <thead><tr><th>Date</th><th>Opp</th><th>Res</th><th>Pts</th><th>Reb</th><th>Ast</th><th>3pt</th><th>Fg</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= MOMENTUM ======================= -->
+    <section id="momentum" class="section" aria-label="Momentum">
+      <div class="section-head">
+        <h2 class="painted">Momentum</h2>
+        <span class="head-rule" aria-hidden="true"></span>
+      </div>
+      <div class="banner chart-banner">
+        <div class="chart-head">
+          <h4 class="chart-title" id="worm-title">Lead tracker</h4>
+          <p class="chart-sub" id="worm-sub">—</p>
+        </div>
+        <div class="worm-legend" aria-hidden="true">
+          <span class="lg lg-gold">Fever lead</span>
+          <span class="lg lg-blue">Trailing</span>
+        </div>
+        <div class="worm" id="worm"></div>
+        <div class="chart-tip" id="worm-tip" hidden></div>
+        <div class="worm-extremes" id="worm-extremes"></div>
+      </div>
+    </section>
+
+    <!-- ======================= SCHEDULE / RESULTS ======================= -->
+    <section id="games" class="section" aria-label="Recent results and upcoming games">
+      <div class="section-head">
+        <h2 class="painted">Recent &amp; Up Next</h2>
+        <span class="head-rule" aria-hidden="true"></span>
+      </div>
+      <div class="games-cols">
+        <div class="games-col">
+          <h4 class="col-label">Last 8</h4>
+          <ol class="game-rows" id="recent-rows"><li class="skeleton skel-row"></li><li class="skeleton skel-row"></li><li class="skeleton skel-row"></li></ol>
+        </div>
+        <div class="games-col">
+          <h4 class="col-label">Coming up</h4>
+          <ol class="game-rows" id="upcoming-rows"><li class="skeleton skel-row"></li><li class="skeleton skel-row"></li></ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= STANDINGS ======================= -->
+    <section id="standings" class="section" aria-label="WNBA standings">
+      <div class="section-head">
+        <h2 class="painted">Standings</h2>
+        <span class="head-rule" aria-hidden="true"></span>
+      </div>
+      <div id="standings-wrap">
+        <div class="skeleton skel-table" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <!-- ======================= HIGHLIGHTS ======================= -->
+    <section id="news" class="section" aria-label="Highlights and news">
+      <div class="section-head">
+        <h2 class="painted">Highlights</h2>
+        <span class="head-rule" aria-hidden="true"></span>
+      </div>
+      <div class="news-rail" id="news-rail">
+        <div class="skeleton skel-card" aria-hidden="true"></div>
+        <div class="skeleton skel-card" aria-hidden="true"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p class="foot-line" id="updated-line">· Loading ·</p>
+    <p class="foot-note">Not affiliated with the Indiana Fever or the WNBA. Data courtesy of the public ESPN API, refreshed automatically. Built in the spirit of <a href="https://github.com/jrsherlock/fly-the-w">Fly&nbsp;the&nbsp;W</a>.</p>
+  </footer>
+
+  <script src="app.js?v=1"></script>
+</body>
+</html>
