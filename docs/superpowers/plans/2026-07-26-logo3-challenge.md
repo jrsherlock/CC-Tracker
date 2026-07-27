@@ -1568,7 +1568,7 @@ And in the "Tech" section, extend the hand-rolled-charts bullet with:
    - [ ] Backgrounding the tab pauses; resizing/rotating mid-game keeps the scene proportioned.
    - [ ] Narrow viewport (~375px): HUD legible, panels fit, one-thumb flicks comfortable.
    - [ ] `styles.css?v=7` and `shootout.js?v=1` load (network tab), SW `v4` activates, and the game works offline on a second visit.
-4. The user should play on a real phone (installed PWA) for final feel sign-off — flick tuning lives in `flickToLaunch`'s `0.8/3.2` window and `0.72 + pn * 0.5` band only.
+4. The user should play on a real phone (installed PWA) for final feel sign-off — flick tuning lives in `flickToLaunch`'s `[0.9, 4.0]` window and `0.72 + pn * 0.5` band only.
 
 - [ ] **Step 3: Commit**
 

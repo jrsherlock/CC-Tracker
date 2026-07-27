@@ -221,11 +221,17 @@ export function emptyStore() {
   return { bests: [], career: { games: 0, makes: 0, swishes: 0, points: 0 }, muted: false };
 }
 
+const bestEntryOk = (e) => e && Number.isFinite(e.score) && Number.isFinite(e.makes) &&
+  Number.isFinite(e.swishes) && Number.isFinite(e.streak) &&
+  typeof e.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date);
+
 export function parseStore(raw) {
   try {
     const s = JSON.parse(raw);
     if (!s || !Array.isArray(s.bests) || typeof s.career !== 'object' || !s.career) return emptyStore();
-    return { ...emptyStore(), ...s, career: { ...emptyStore().career, ...s.career } };
+    const merged = { ...emptyStore(), ...s, career: { ...emptyStore().career, ...s.career } };
+    merged.bests = merged.bests.filter(bestEntryOk);
+    return merged;
   } catch {
     return emptyStore();
   }
@@ -859,12 +865,13 @@ function initShootout() {
     failed = false;
     showStart();
     startLoop();
-    closeBtn.focus();
   }
   function closeGame() {
     stopLoop();
     ui.innerHTML = '';
     S.mode = 'idle';
+    S.wait = 0; S.after = null; S.game = null;
+    S.dragging = false; S.trail = [];
     overlay.hidden = true;
     document.documentElement.classList.remove('shootout-lock');
     (lastFocus && lastFocus.focus) ? lastFocus.focus() : playBtn.focus();

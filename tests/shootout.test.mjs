@@ -183,6 +183,12 @@ test('parseStore survives garbage and fills missing fields', () => {
   assert.equal(s.muted, false);
 });
 
+test('parseStore drops malformed bests entries', () => {
+  const s = parseStore('{"bests":[{},{"score":10},{"score":900,"makes":9,"swishes":2,"streak":5,"date":"2026-07-27"},{"score":1,"makes":0,"swishes":0,"streak":0,"date":"<img>"}],"career":{}}');
+  assert.equal(s.bests.length, 1);
+  assert.equal(s.bests[0].score, 900);
+});
+
 test('updateBests sorts, caps at 10, ties are not new bests, career accumulates', () => {
   const e = (score) => ({ score, makes: 4, streak: 2, swishes: 1, date: '2026-07-26' });
   let r = updateBests(emptyStore(), e(500));
