@@ -4,6 +4,7 @@ import {
   newBall, stepBall, collideRim, collideBoard, launchSpeedFor,
   RELEASE_Y, RIM_Y, RIM_R, BALL_R, RIM_TUBE, REST_RIM, BOARD_Z, DT,
   ROUNDS, BALLS_PER_ROUND, AIM_MAX, spotPosition, flickToLaunch,
+  newGame, recordShot, parseStore, emptyStore, updateBests, STORE_KEY,
 } from '../shootout.js';
 
 // launch a ball from `dist` ft straight at the hoop and settle it
@@ -135,4 +136,62 @@ test('downward or feeble gestures do not shoot', () => {
   assert.equal(flickToLaunch([{ x: 0, y: 0, t: 0 }, { x: 0, y: 80, t: 80 }], o), null);
   assert.equal(flickToLaunch([{ x: 0, y: 0, t: 0 }, { x: 0, y: -4, t: 80 }], o), null);
   assert.equal(flickToLaunch([{ x: 0, y: 0, t: 0 }], o), null);
+});
+
+test('scoring: base values, swish +50%, on fire doubles from the igniting make', () => {
+  const g = newGame();
+  assert.equal(recordShot(g, true, false).points, 100);
+  assert.equal(recordShot(g, true, true).points, 150);   // swish
+  const third = recordShot(g, true, false);              // 3rd straight ignites
+  assert.equal(g.fire, true);
+  assert.equal(third.points, 200);                       // 100 × 2
+  assert.equal(recordShot(g, true, true).points, 300);   // 100 × 1.5 × 2
+  const fifth = recordShot(g, false, false);
+  assert.equal(g.fire, false);
+  assert.equal(g.streak, 0);
+  assert.equal(fifth.roundUp, true);
+  assert.equal(g.round, 1);
+  assert.equal(g.score, 750);
+  assert.equal(g.longest, 4);
+});
+
+test('streak carries across rounds; logo swish on fire = 900', () => {
+  const g = newGame();
+  for (let i = 0; i < 10; i++) recordShot(g, true, false);
+  assert.equal(g.round, 2);
+  assert.equal(g.fire, true);
+  assert.equal(recordShot(g, true, true).points, 900);   // 300 × 1.5 × 2
+});
+
+test('game ends after 15 balls', () => {
+  const g = newGame();
+  for (let i = 0; i < 14; i++) assert.equal(recordShot(g, false, false).over, false);
+  const last = recordShot(g, true, false);
+  assert.equal(last.over, true);
+  assert.equal(g.over, true);
+  assert.equal(g.makes, 1);
+});
+
+test('parseStore survives garbage and fills missing fields', () => {
+  assert.equal(STORE_KEY, 'cc-shootout-v1');
+  assert.deepEqual(parseStore(null), emptyStore());
+  assert.deepEqual(parseStore('not json'), emptyStore());
+  assert.deepEqual(parseStore('{"bests":"x"}'), emptyStore());
+  const s = parseStore('{"bests":[{"score":10}],"career":{"games":2}}');
+  assert.equal(s.career.games, 2);
+  assert.equal(s.career.makes, 0);
+  assert.equal(s.muted, false);
+});
+
+test('updateBests sorts, caps at 10, ties are not new bests, career accumulates', () => {
+  const e = (score) => ({ score, makes: 4, streak: 2, swishes: 1, date: '2026-07-26' });
+  let r = updateBests(emptyStore(), e(500));
+  assert.equal(r.isBest, true);
+  r = updateBests(r.store, e(500));
+  assert.equal(r.isBest, false);                         // tie keeps the older entry on top
+  for (let i = 1; i <= 12; i++) r = updateBests(r.store, e(i));
+  assert.equal(r.store.bests.length, 10);
+  assert.equal(r.store.bests[0].score, 500);
+  assert.equal(r.store.career.games, 14);
+  assert.equal(r.store.career.makes, 14 * 4);
 });

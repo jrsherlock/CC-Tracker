@@ -174,3 +174,66 @@ export function flickToLaunch(trail, opts) {
     power: pn,
   };
 }
+
+/* ------------------------------------------------------ scoring & store */
+export function newGame() {
+  return { round: 0, ball: 0, score: 0, makes: 0, swishes: 0, streak: 0, longest: 0, fire: false, over: false };
+}
+
+export function recordShot(g, made, swish) {
+  let points = 0;
+  if (made) {
+    g.streak += 1;
+    g.makes += 1;
+    if (swish) g.swishes += 1;
+    if (g.streak > g.longest) g.longest = g.streak;
+    g.fire = g.streak >= 3;
+    points = ROUNDS[g.round].value * (swish ? 1.5 : 1) * (g.fire ? 2 : 1);
+    g.score += points;
+  } else {
+    g.streak = 0;
+    g.fire = false;
+  }
+  g.ball += 1;
+  let roundUp = false;
+  if (g.ball >= BALLS_PER_ROUND) {
+    g.ball = 0;
+    if (g.round + 1 >= ROUNDS.length) g.over = true;
+    else { g.round += 1; roundUp = true; }
+  }
+  return { points, roundUp, over: g.over };
+}
+
+export const STORE_KEY = 'cc-shootout-v1';
+
+export function emptyStore() {
+  return { bests: [], career: { games: 0, makes: 0, swishes: 0, points: 0 }, muted: false };
+}
+
+export function parseStore(raw) {
+  try {
+    const s = JSON.parse(raw);
+    if (!s || !Array.isArray(s.bests) || typeof s.career !== 'object' || !s.career) return emptyStore();
+    return { ...emptyStore(), ...s, career: { ...emptyStore().career, ...s.career } };
+  } catch {
+    return emptyStore();
+  }
+}
+
+export function updateBests(store, entry) {
+  const bests = [...store.bests, entry].sort((a, b) => b.score - a.score).slice(0, 10);
+  const c = store.career;
+  return {
+    store: {
+      ...store,
+      bests,
+      career: {
+        games: c.games + 1,
+        makes: c.makes + entry.makes,
+        swishes: c.swishes + entry.swishes,
+        points: c.points + entry.score,
+      },
+    },
+    isBest: bests[0] === entry,
+  };
+}
