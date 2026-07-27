@@ -507,11 +507,64 @@ function initShootout() {
     reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
   };
 
-  // Juice stubs — implemented in Task 7 (net/particles/shake) and Task 8 (sound).
-  function netTick(netRef, ball, dt) {}
-  function kick(n) {}
-  function burstAtRim() {}
-  function flameTrail(ball) {}
+  /* Verlet net: nodes relax toward their rest shape; the ball shoves them. */
+  function netTick(netRef, ball, dt) {
+    for (const n of netRef.nodes) {
+      if (n.pin) continue;
+      const vx = (n.x - n.px) * 0.9, vy = (n.y - n.py) * 0.9, vz = (n.z - n.pz) * 0.9;
+      n.px = n.x; n.py = n.y; n.pz = n.z;
+      n.x += vx + (n.ox - n.x) * 0.03;
+      n.y += vy + (n.oy - n.y) * 0.03;
+      n.z += vz + (n.oz - n.z) * 0.03;
+    }
+    if (ball && ball.live && !ball.done) {
+      const R = BALL_R + 0.05;
+      for (const n of netRef.nodes) {
+        if (n.pin) continue;
+        const dx = n.x - ball.p.x, dy = n.y - ball.p.y, dz = n.z - ball.p.z;
+        const d = Math.hypot(dx, dy, dz);
+        if (d < R && d > 1e-6) {
+          const push = (R - d) / d;
+          n.x += dx * push; n.y += dy * push; n.z += dz * push;
+        }
+      }
+    }
+    for (let it = 0; it < 2; it++) {
+      for (const [ia, ib, rest] of netRef.cons) {
+        const a = netRef.nodes[ia], b2 = netRef.nodes[ib];
+        const dx = b2.x - a.x, dy = b2.y - a.y, dz = b2.z - a.z;
+        const d = Math.hypot(dx, dy, dz);
+        if (d <= rest || d < 1e-6) continue;              // strings only pull
+        const corr = (d - rest) / d / 2;
+        if (!a.pin) { a.x += dx * corr; a.y += dy * corr; a.z += dz * corr; }
+        if (!b2.pin) { b2.x -= dx * corr; b2.y -= dy * corr; b2.z -= dz * corr; }
+      }
+    }
+  }
+
+  function kick(n) { if (!S.reduced) S.fx.shake = n; }
+
+  function burstAtRim() {
+    if (S.reduced) return;
+    const q = project(S.cam, 0, RIM_Y, 0);
+    if (!q) return;
+    for (let i = 0; i < 14; i++) {
+      const a = Math.random() * 2 * Math.PI, sp = 60 + Math.random() * 120;
+      S.fx.parts.push({ x: q.x, y: q.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, life: 0.6 + Math.random() * 0.3, color: '#eec73f' });
+    }
+  }
+
+  function flameTrail(ball) {
+    if (S.reduced) return;
+    const q = project(S.cam, ball.p.x, ball.p.y, ball.p.z);
+    if (!q) return;
+    S.fx.parts.push({
+      x: q.x + (Math.random() - 0.5) * 4, y: q.y,
+      vx: (Math.random() - 0.5) * 20, vy: 30,
+      life: 0.35, color: Math.random() < 0.5 ? '#ff7a3c' : '#ffb066',
+    });
+  }
+
   const noop = () => {};
   let sfx = { bounce: noop, clank: noop, board: noop, swish: noop, score: noop, fire: noop, buzzer: noop };
 
