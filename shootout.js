@@ -237,3 +237,54 @@ export function updateBests(store, entry) {
     isBest: bests[0] === entry,
   };
 }
+
+/* ------------------------------------------------ DOM shell (browser only) */
+if (typeof document !== 'undefined') initShootout();
+
+function initShootout() {
+  const card = document.getElementById('shootout-card');
+  const playBtn = document.getElementById('shootout-play');
+  const overlay = document.getElementById('shootout');
+  if (!card || !playBtn || !overlay) return;
+  const canvas = document.getElementById('shootout-canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) { card.hidden = true; return; }
+  const ui = document.getElementById('shootout-ui');
+  const closeBtn = document.getElementById('shootout-close');
+  const muteBtn = document.getElementById('shootout-mute');
+  const bestEl = document.getElementById('shootout-best');
+
+  const view = { w: 0, h: 0 };
+  function sizeCanvas() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    view.w = Math.min(overlay.clientWidth, 560);
+    view.h = overlay.clientHeight;
+    canvas.style.width = view.w + 'px';
+    canvas.style.height = view.h + 'px';
+    canvas.width = Math.round(view.w * dpr);
+    canvas.height = Math.round(view.h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  let lastFocus = null;
+  function openGame() {
+    lastFocus = document.activeElement;
+    overlay.hidden = false;
+    document.documentElement.classList.add('shootout-lock');
+    sizeCanvas();
+    ctx.fillStyle = '#0b1526';           // placeholder paint until Task 5's loop
+    ctx.fillRect(0, 0, view.w, view.h);
+    closeBtn.focus();
+  }
+  function closeGame() {
+    overlay.hidden = true;
+    document.documentElement.classList.remove('shootout-lock');
+    (lastFocus && lastFocus.focus) ? lastFocus.focus() : playBtn.focus();
+  }
+
+  playBtn.addEventListener('click', openGame);
+  card.addEventListener('click', (e) => { if (e.target !== playBtn) openGame(); });
+  closeBtn.addEventListener('click', closeGame);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden) closeGame(); });
+  window.addEventListener('resize', () => { if (!overlay.hidden) sizeCanvas(); });
+}

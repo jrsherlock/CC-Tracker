@@ -719,3 +719,49 @@ main { position: relative; z-index: 1; }
   .skeleton { animation: none; }
   * { transition-duration: 0.01ms !important; }
 }
+
+/* ============================================================
+   LOGO 3 CHALLENGE
+   ============================================================ */
+.shootout-card { display: flex; align-items: center; justify-content: space-between; gap: 1rem; cursor: pointer; }
+.shootout-card .chart-sub { margin: 0.15rem 0 0; }
+.shootout-card-side { display: flex; align-items: center; gap: 0.8rem; flex-shrink: 0; }
+.shootout-best { font-family: var(--font-mono); color: var(--gold); font-size: 0.85rem; white-space: nowrap; }
+.shootout-play {
+  font-family: var(--font-label); text-transform: uppercase; letter-spacing: 0.08em;
+  font-size: 0.95rem; padding: 0.5rem 1.15rem; border-radius: 999px; cursor: pointer;
+  color: oklch(0.2 0.05 262); background: var(--gold);
+  border: 1px solid var(--gold-deep); box-shadow: 0 2px 0 var(--gold-shadow);
+}
+.shootout-play:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--gold-shadow); }
+.shootout-ghost { background: transparent; color: var(--chalk-dim); border-color: var(--arena-line); box-shadow: none; margin-left: 0.5rem; }
+
+.shootout-overlay { position: fixed; inset: 0; z-index: 80; background: var(--arena-deep); display: flex; justify-content: center; overscroll-behavior: none; }
+.shootout-overlay[hidden] { display: none; }
+#shootout-canvas { display: block; touch-action: none; }
+.shootout-lock, .shootout-lock body { overflow: hidden; }
+
+.shootout-close, .shootout-mute {
+  position: absolute; top: calc(0.6rem + env(safe-area-inset-top)); width: 44px; height: 44px;
+  border-radius: 50%; background: oklch(0.25 0.05 262 / 0.85); color: var(--chalk);
+  border: 1px solid var(--arena-line); font-size: 1.05rem; z-index: 2; cursor: pointer;
+}
+.shootout-close { right: 0.7rem; }
+.shootout-mute { left: 0.7rem; }
+
+.shootout-ui { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 1; }
+.shootout-ui .panel {
+  pointer-events: auto; text-align: center; width: min(88vw, 380px);
+  background: oklch(0.22 0.05 262 / 0.94); border: 1px solid var(--banner-edge);
+  border-radius: 14px; padding: 1.4rem 1.6rem; box-shadow: 0 18px 50px oklch(0 0 0 / 0.45);
+}
+.shootout-ui h3 { font-family: var(--font-display); color: var(--gold); font-size: 1.35rem; letter-spacing: 0.04em; margin: 0 0 0.4rem; }
+.shootout-ui p { color: var(--chalk-dim); margin: 0.3rem 0; font-size: 0.95rem; }
+.shootout-ui .panel .shootout-play { margin-top: 0.9rem; }
+.shootout-stats { display: flex; justify-content: center; gap: 1.2rem; margin-top: 0.6rem; font-family: var(--font-mono); font-size: 0.88rem; color: var(--chalk); }
+.shootout-bests { list-style: none; margin: 0.8rem 0 0; padding: 0; font-family: var(--font-mono); font-size: 0.85rem; color: var(--chalk-dim); }
+.shootout-bests li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.15rem 0; }
+.shootout-bests .you { color: var(--gold); }
+.shootout-newbest { font-family: var(--font-display); color: var(--gold); font-size: 1rem; animation: shootout-pop 0.5s var(--ease); }
+@keyframes shootout-pop { from { transform: scale(0.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .shootout-newbest { animation: none; } }
