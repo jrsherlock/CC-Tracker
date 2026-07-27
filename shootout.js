@@ -266,17 +266,221 @@ function initShootout() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
+  /* ---- camera & projection: pinhole, yawed to face the rim ---- */
+  function makeCamera(spot) {
+    const yaw = Math.atan2(-spot.x, -spot.z);
+    return {
+      yaw, cos: Math.cos(yaw), sin: Math.sin(yaw),
+      x: spot.x - Math.sin(yaw) * 7, y: 5.6, z: spot.z - Math.cos(yaw) * 7,
+    };
+  }
+  function project(cam, px, py, pz) {
+    const dx = px - cam.x, dy = py - cam.y, dz = pz - cam.z;
+    const cz = dz * cam.cos + dx * cam.sin;
+    if (cz < 0.6) return null;
+    const cx = dx * cam.cos - dz * cam.sin;
+    const f = view.h * 1.15;
+    return { x: view.w / 2 + (cx * f) / cz, y: view.h * 0.66 - (dy * f) / cz, s: f / cz };
+  }
+  function line3(cam, pts, close = false) {
+    ctx.beginPath();
+    let started = false;
+    for (const [x, y, z] of pts) {
+      const q = project(cam, x, y, z);
+      if (!q) { started = false; continue; }
+      if (started) ctx.lineTo(q.x, q.y); else { ctx.moveTo(q.x, q.y); started = true; }
+    }
+    if (close) ctx.closePath();
+    ctx.stroke();
+  }
+  function arc3(cam, cx, cz, r, a0, a1, y = 0) {
+    const pts = [];
+    for (let i = 0; i <= 48; i++) {
+      const a = a0 + ((a1 - a0) * i) / 48;
+      pts.push([cx + Math.sin(a) * r, y, cz - Math.cos(a) * r]);
+    }
+    line3(cam, pts);
+  }
+  function quad3(cam, pts, fill, stroke) {
+    const q = pts.map(([x, y, z]) => project(cam, x, y, z));
+    if (q.some((p) => !p)) return;
+    ctx.beginPath();
+    ctx.moveTo(q[0].x, q[0].y);
+    for (let i = 1; i < 4; i++) ctx.lineTo(q[i].x, q[i].y);
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); }
+  }
+
+  function drawScene(cam) {
+    const hor = view.h * 0.66;
+    const sky = ctx.createLinearGradient(0, 0, 0, hor);
+    sky.addColorStop(0, '#05080f');
+    sky.addColorStop(1, '#101c33');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, view.w, hor);
+    const fl = ctx.createLinearGradient(0, hor, 0, view.h);
+    fl.addColorStop(0, '#3c2e1c');
+    fl.addColorStop(1, '#7d6136');
+    ctx.fillStyle = fl;
+    ctx.fillRect(0, hor, view.w, view.h - hor);
+
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(240,234,214,0.42)';
+    line3(cam, [[-25, 0, 4], [25, 0, 4]]);                                  // baseline
+    line3(cam, [[-25, 0, 4], [-25, 0, -42]]);                               // sidelines
+    line3(cam, [[25, 0, 4], [25, 0, -42]]);
+    line3(cam, [[-8, 0, 4], [-8, 0, -15], [8, 0, -15], [8, 0, 4]]);         // key
+    arc3(cam, 0, -15, 6, -Math.PI / 2, Math.PI / 2);                        // FT circle (front half)
+    ctx.strokeStyle = 'rgba(240,234,214,0.55)';
+    arc3(cam, 0, 0, 22.15, -1.35, 1.35);                                    // 3-pt arc
+
+    // center-court "CC" roundel (original mark) at the logo shooting spot
+    ctx.strokeStyle = 'rgba(238,199,63,0.85)';
+    ctx.lineWidth = 3;
+    arc3(cam, 0, -30.5, 3, -Math.PI, Math.PI, 0.02);
+    const lq = project(cam, 0, 0.02, -30.5);
+    if (lq) {
+      ctx.fillStyle = 'rgba(238,199,63,0.8)';
+      ctx.font = `${Math.max(8, 2.2 * lq.s)}px Graduate, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('CC', lq.x, lq.y);
+    }
+
+    // stanchion + backboard + shooter square
+    ctx.strokeStyle = 'rgba(140,150,170,0.7)';
+    ctx.lineWidth = 4;
+    line3(cam, [[0, 0, 6.5], [0, 9.4, 6.5], [0, 9.4, 1.4]]);
+    quad3(cam, [[-3, 9.5, 1.3], [3, 9.5, 1.3], [3, 13, 1.3], [-3, 13, 1.3]],
+      'rgba(228,236,248,0.14)', 'rgba(228,236,248,0.75)');
+    quad3(cam, [[-1, 10, 1.28], [1, 10, 1.28], [1, 11.5, 1.28], [-1, 11.5, 1.28]],
+      null, 'rgba(228,236,248,0.8)');
+  }
+
+  function drawRim(cam) {
+    const q = project(cam, 0, RIM_Y, 0);
+    if (!q) return;
+    const pts = [];
+    for (let i = 0; i <= 40; i++) {
+      const a = (i / 40) * 2 * Math.PI;
+      pts.push([Math.cos(a) * RIM_R, RIM_Y, Math.sin(a) * RIM_R]);
+    }
+    ctx.strokeStyle = '#e05a24';
+    ctx.lineWidth = Math.max(2, q.s * RIM_TUBE * 2);
+    line3(cam, pts, true);
+  }
+
+  const NET_S = 10, NET_R = 4;
+  function makeNet() {
+    const nodes = [];
+    for (let r = 0; r < NET_R; r++) {
+      const rad = RIM_R * (1 - r * 0.12), y = RIM_Y - r * 0.36;
+      for (let s = 0; s < NET_S; s++) {
+        const a = (s / NET_S) * 2 * Math.PI;
+        const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
+        nodes.push({ x, y, z, ox: x, oy: y, oz: z, px: x, py: y, pz: z, pin: r === 0 });
+      }
+    }
+    const cons = [];
+    const d3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+    for (let r = 0; r < NET_R - 1; r++) for (let s = 0; s < NET_S; s++) {
+      const i = r * NET_S + s;
+      cons.push([i, i + NET_S, d3(nodes[i], nodes[i + NET_S])]);
+      const j = (r + 1) * NET_S + ((s + 1) % NET_S);
+      cons.push([i, j, d3(nodes[i], nodes[j])]);
+    }
+    return { nodes, cons };
+  }
+  const net = makeNet();
+
+  function drawNet(cam) {
+    const P = net.nodes.map((n) => project(cam, n.x, n.y, n.z));
+    ctx.strokeStyle = 'rgba(240,240,240,0.6)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let r = 0; r < NET_R - 1; r++) for (let s = 0; s < NET_S; s++) {
+      const a = P[r * NET_S + s];
+      const b = P[(r + 1) * NET_S + s];
+      const c = P[(r + 1) * NET_S + ((s + 1) % NET_S)];
+      if (a && b) { ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
+      if (a && c) { ctx.moveTo(a.x, a.y); ctx.lineTo(c.x, c.y); }
+    }
+    ctx.stroke();
+  }
+
+  function drawBall(cam, b, fire) {
+    const q = project(cam, b.p.x, b.p.y, b.p.z);
+    if (!q) return;
+    const r = Math.max(BALL_R * q.s, 3);
+    const g = ctx.createRadialGradient(q.x - r * 0.35, q.y - r * 0.4, r * 0.2, q.x, q.y, r);
+    g.addColorStop(0, fire ? '#ffb066' : '#e8853a');
+    g.addColorStop(1, fire ? '#c33f10' : '#a34d16');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(q.x, q.y, r, 0, 7);
+    ctx.fill();
+    const rot = b.rot || 0;
+    ctx.strokeStyle = 'rgba(40,18,8,0.55)';
+    ctx.lineWidth = Math.max(1, r * 0.07);
+    ctx.beginPath(); ctx.arc(q.x, q.y, r * 0.98, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(q.x, q.y, r * 0.98, r * 0.35, rot, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(q.x, q.y, r * 0.35, r * 0.98, rot, 0, 7); ctx.stroke();
+  }
+
+  /* ---- loop: 120 Hz physics accumulator, rAF render, one-shot error trap ---- */
+  let raf = 0, last = 0, acc = 0, failed = false;
+  function frame(ts) {
+    raf = requestAnimationFrame(frame);
+    if (!last) last = ts;
+    const dt = Math.min((ts - last) / 1000, 0.1);
+    last = ts;
+    acc += dt;
+    try {
+      while (acc >= DT) { tick(DT); acc -= DT; }
+      render();
+    } catch (err) { fail(err); }
+  }
+  function startLoop() { if (!raf && !failed) { last = 0; acc = 0; raf = requestAnimationFrame(frame); } }
+  function stopLoop() { cancelAnimationFrame(raf); raf = 0; }
+  function fail(err) {
+    console.error('[shootout]', err);
+    failed = true;
+    stopLoop();
+    ui.innerHTML = `<div class="panel"><h3>Something went wrong</h3>
+      <p>The game hit an error. Close and reopen to try again.</p>
+      <button class="shootout-play" id="shootout-errclose">Close</button></div>`;
+    ui.querySelector('#shootout-errclose').onclick = closeGame;
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopLoop();
+    else if (!overlay.hidden) startLoop();
+  });
+
+  // Preview-only state so the scene is visible; Task 6 replaces this with game state.
+  const previewSpot = spotPosition(0, 2);
+  const previewCam = makeCamera(previewSpot);
+  const previewBall = newBall(previewSpot);
+  function tick(dt) {}                                   // replaced in Task 6
+  function render() {                                    // replaced in Task 6
+    ctx.clearRect(0, 0, view.w, view.h);
+    drawScene(previewCam);
+    drawNet(previewCam);
+    drawRim(previewCam);
+    drawBall(previewCam, previewBall, false);
+  }
+
   let lastFocus = null;
   function openGame() {
     lastFocus = document.activeElement;
     overlay.hidden = false;
     document.documentElement.classList.add('shootout-lock');
     sizeCanvas();
-    ctx.fillStyle = '#0b1526';           // placeholder paint until Task 5's loop
-    ctx.fillRect(0, 0, view.w, view.h);
+    failed = false; startLoop();
     closeBtn.focus();
   }
   function closeGame() {
+    stopLoop();
     overlay.hidden = true;
     document.documentElement.classList.remove('shootout-lock');
     (lastFocus && lastFocus.focus) ? lastFocus.focus() : playBtn.focus();
