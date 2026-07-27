@@ -1577,3 +1577,17 @@ cd "/Users/sherlock/Projects/CC Tracker"
 git add README.md
 git commit -m "Document the Logo 3 Challenge mini-game in the README"
 ```
+
+---
+
+### Task 6b (amendment, 2026-07-27): Shooting feel + depth retune
+
+Owner playtest feedback after Task 6: shots nearly impossible to make (gesture
+mapping demanded ~±1% flick precision); rounds read as the same distance (fixed
+camera, no pitch, no floor context). Owner-approved calibration: **Balanced**
+(±8% / ±6% / ±4% effective make windows via invisible sweet-spot assist).
+Changes: `flickToLaunch` n-window widened to [0.9, 4.0] + power/aim assist
+driven by new per-round `ROUNDS[i].assist` values; `HELD_Y` 4.2 → 3.6; pitched
+(~11°) distance-aware camera (pull-back + rise per round); hardwood planks +
+painted key; 3 new assist tests. Full brief:
+`.superpowers/sdd/2026-07-26-logo3-challenge/task-6b-brief.md` (workspace copy).
