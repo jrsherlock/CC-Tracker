@@ -6,6 +6,7 @@ A live, single-page Indiana Fever game tracker with a dedicated Caitlin Clark se
 
 - **Game center hero** — when the Fever are playing: live score, quarter and clock, last play, quarter-by-quarter linescore, and Caitlin Clark's live statline, refreshed every 25 seconds. Off nights: a countdown to tipoff with venue and broadcast, plus the last final.
 - **Clark Watch** — season averages vs. career (PPG / APG / RPG / 3P%), a last-game banner with season-high flags, a points-per-game chart with a season-average reference line and hover statlines, a season ledger (highs, double-doubles, 20-point games), and a full recent game log.
+- **Logo 3 Challenge** — a flick-to-shoot 3-point mini-game: 15 balls across three deepening rounds (the arc → deep → the center-court logo), real 3D ball physics with rim/backboard collisions, swish bonuses, an NBA-Jam-style on-fire multiplier, and localStorage personal bests. Launched from a card in the Clark section; works with touch or mouse.
 - **Momentum** — a lead-tracker worm built from ESPN play-by-play: gold when the Fever lead, blue when trailing, with quarter gridlines, biggest lead / worst deficit, and a scrub-friendly crosshair tooltip.
 - **Recent & up next** — last eight results with W/L chips, next five games with local tip times and broadcast.
 - **Standings** — both conferences, Fever row highlighted, W/L/PCT/GB (plus streak and L10 on wider screens).
@@ -49,6 +50,7 @@ python3 -m http.server 8000
   server code is two Vercel Functions in `api/` (`web-push` + `@vercel/blob`).
 - Data from the public ESPN API (team schedule, game summaries with play-by-play and boxscores, standings, news, and athlete stat endpoints), fetched client-side.
 - Hand-rolled SVG charts. Chart colors validated for contrast and color-vision-deficiency separation against the navy surface.
+- The Logo 3 Challenge game is a single dependency-free ES module (`shootout.js`): Canvas 2D with a hand-rolled perspective projection, 120 Hz fixed-timestep physics, a verlet net, and WebAudio-synthesized sound. Its pure simulation core is unit-tested in `tests/shootout.test.mjs`.
 - Graduate + Saira Condensed + Archivo + Red Hat Mono via Google Fonts.
 
 ## Disclaimer
