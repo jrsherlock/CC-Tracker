@@ -457,17 +457,249 @@ function initShootout() {
     else if (!overlay.hidden) startLoop();
   });
 
-  // Preview-only state so the scene is visible; Task 6 replaces this with game state.
-  const previewSpot = spotPosition(0, 2);
-  const previewCam = makeCamera(previewSpot);
-  const previewBall = newBall(previewSpot);
-  function tick(dt) {}                                   // replaced in Task 6
-  function render() {                                    // replaced in Task 6
+  function loadStore() {
+    try { return parseStore(localStorage.getItem(STORE_KEY)); } catch { return emptyStore(); }
+  }
+  function saveStore(s) {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch {}
+  }
+
+  const S = {
+    mode: 'idle',                 // idle | playing | between | over
+    game: null, ball: null, spot: null, cam: null,
+    wait: 0, after: null,         // countdown → callback
+    trail: [], dragging: false,
+    fx: { msgs: [], parts: [], shake: 0 },
+    store: loadStore(),
+    reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
+  };
+
+  // Juice stubs — implemented in Task 7 (net/particles/shake) and Task 8 (sound).
+  function netTick(netRef, ball, dt) {}
+  function kick(n) {}
+  function burstAtRim() {}
+  function flameTrail(ball) {}
+  const noop = () => {};
+  let sfx = { bounce: noop, clank: noop, board: noop, swish: noop, score: noop, fire: noop, buzzer: noop };
+
+  function setSpot(round, ballIdx) {
+    S.spot = spotPosition(round, ballIdx);
+    S.cam = makeCamera(S.spot);
+    S.ball = newBall(S.spot);
+    S.ball.pending = null;        // raise-animation clock (shell-only field)
+    S.ball.storedV = null;
+  }
+
+  function startGame() {
+    S.game = newGame();
+    setSpot(0, 0);
+    S.mode = 'playing';
+    ui.innerHTML = '';
+  }
+
+  function flash(text, color) { S.fx.msgs.push({ text, color, t: 0 }); }
+
+  function resolveShot() {
+    const b = S.ball, wasFire = S.game.fire;
+    const r = recordShot(S.game, b.made, b.swish);
+    if (b.made) {
+      flash(b.swish ? `SWISH! +${r.points}` : `+${r.points}`, b.swish ? '#ffd25e' : '#f0ead6');
+      if (b.swish) sfx.swish();
+      sfx.score();
+      if (navigator.vibrate) navigator.vibrate(35);
+      if (!wasFire && S.game.fire) {
+        flash('ON FIRE · 2× POINTS', '#ff7a3c');
+        sfx.fire();
+        if (navigator.vibrate) navigator.vibrate([0, 40, 60, 40]);
+      }
+      burstAtRim();
+    } else {
+      flash('MISS', '#8fa2c8');
+    }
+    if (r.over) { S.wait = 0.9; S.after = endGame; }
+    else if (r.roundUp) { S.wait = 0.9; S.after = () => showBetween(S.game.round); }
+    else { S.wait = 0.65; S.after = () => setSpot(S.game.round, S.game.ball); }
+  }
+
+  function bestsHTML(bests, current) {
+    if (!bests.length) return '';
+    return '<ol class="shootout-bests">' + bests.slice(0, 5).map((b) =>
+      `<li${b === current ? ' class="you"' : ''}><span>${b.score.toLocaleString()}</span>` +
+      `<span>${b.makes}/15 · ${b.date}</span></li>`).join('') + '</ol>';
+  }
+
+  function showStart() {
+    S.mode = 'idle';
+    setSpot(0, 0);
+    ui.innerHTML = `<div class="panel"><h3>Logo 3 Challenge</h3>
+      <p>15 balls · 3 rounds · arc to logo.<br/>Flick up to shoot — swipe angle aims.</p>
+      ${bestsHTML(S.store.bests, null)}
+      <button class="shootout-play" id="shootout-start">Play</button></div>`;
+    ui.querySelector('#shootout-start').onclick = startGame;
+    ui.querySelector('#shootout-start').focus();
+  }
+
+  function showBetween(round) {
+    S.mode = 'between';
+    const r = ROUNDS[round];
+    ui.innerHTML = `<div class="panel"><h3>Round ${round + 1} — ${r.name}</h3>
+      <p>${r.dist} ft · ${r.value} points a make</p></div>`;
+    S.wait = 1.5;
+    S.after = () => { ui.innerHTML = ''; setSpot(round, 0); S.mode = 'playing'; };
+  }
+
+  function endGame() {
+    S.mode = 'over';
+    const g = S.game;
+    const entry = { score: g.score, makes: g.makes, streak: g.longest, swishes: g.swishes, date: new Date().toISOString().slice(0, 10) };
+    const { store, isBest } = updateBests(S.store, entry);
+    S.store = store;
+    saveStore(store);
+    renderCardBest();
+    sfx.buzzer();
+    ui.innerHTML = `<div class="panel">
+      ${isBest && g.score > 0 ? '<p class="shootout-newbest">NEW BEST!</p>' : ''}
+      <h3>${g.score.toLocaleString()} PTS</h3>
+      <div class="shootout-stats"><span>${g.makes}/15</span><span>streak ${g.longest}</span><span>${g.swishes} swish</span></div>
+      ${bestsHTML(store.bests, entry)}
+      <div><button class="shootout-play" id="shootout-again">Play again</button>
+      <button class="shootout-play shootout-ghost" id="shootout-done">Close</button></div></div>`;
+    ui.querySelector('#shootout-again').onclick = startGame;
+    ui.querySelector('#shootout-done').onclick = closeGame;
+    ui.querySelector('#shootout-again').focus();
+  }
+
+  function renderCardBest() {
+    bestEl.textContent = S.store.bests[0] ? `Best: ${S.store.bests[0].score.toLocaleString()}` : 'Not yet played';
+  }
+  renderCardBest();
+
+  function sample(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now() };
+  }
+  canvas.addEventListener('pointerdown', (e) => {
+    if (S.mode !== 'playing' || !S.ball || S.ball.live || S.ball.pending != null) return;
+    const p = sample(e);
+    if (p.y < view.h * 0.5) return;                      // grab zone: lower half
+    canvas.setPointerCapture(e.pointerId);
+    S.dragging = true;
+    S.trail = [p];
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!S.dragging) return;
+    S.trail.push(sample(e));
+    if (S.trail.length > 24) S.trail.shift();
+  });
+  canvas.addEventListener('pointerup', (e) => {
+    if (!S.dragging) return;
+    S.dragging = false;
+    S.trail.push(sample(e));
+    const launch = flickToLaunch(S.trail, { h: view.h, spot: S.spot, dist: ROUNDS[S.game.round].dist });
+    S.trail = [];
+    if (!launch) return;
+    S.ball.storedV = launch.v;
+    S.ball.pending = 0;                                   // start the gather→release raise
+  });
+  canvas.addEventListener('pointercancel', () => { S.dragging = false; S.trail = []; });
+
+  function tick(dt) {
+    if (S.wait > 0) {
+      S.wait -= dt;
+      if (S.wait <= 0 && S.after) { const f = S.after; S.after = null; f(); }
+    }
+    const b = S.ball;
+    if (b) {
+      if (b.pending != null) {                            // 90 ms gather→release
+        b.pending += dt;
+        const k = Math.min(b.pending / 0.09, 1);
+        b.p.y = HELD_Y + (RELEASE_Y - HELD_Y) * k;
+        if (k === 1) { b.v = b.storedV; b.live = true; b.pending = null; }
+      }
+      if (b.live && !b.done) {
+        const c0 = { rim: b.contacts.rim, board: b.contacts.board, floor: b.contacts.floor };
+        stepBall(b, dt);
+        b.rot = (b.rot || 0) + 7 * dt;
+        if (b.contacts.rim > c0.rim) { sfx.clank(); kick(4); }
+        if (b.contacts.board > c0.board) sfx.board();
+        if (b.contacts.floor > c0.floor) sfx.bounce();
+        if (S.game && S.game.fire) flameTrail(b);
+        if (b.done && S.mode === 'playing') resolveShot();
+      }
+      netTick(net, b, dt);
+    }
+    S.fx.msgs = S.fx.msgs.filter((m) => (m.t += dt) < 1);
+    for (const p of S.fx.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 260 * dt; p.life -= dt; }
+    S.fx.parts = S.fx.parts.filter((p) => p.life > 0);
+    S.fx.shake = Math.max(0, S.fx.shake - 30 * dt);
+  }
+
+  function drawHUD() {
+    const g = S.game;
+    if (!g) return;
+    const cx = view.w / 2, top = 14;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.font = "700 26px 'Red Hat Mono', monospace";
+    ctx.fillStyle = '#eec73f';
+    ctx.fillText(g.score.toLocaleString(), cx, top);
+    if (S.mode === 'playing' || S.mode === 'between') {
+      const r = ROUNDS[g.round];
+      ctx.font = "600 15px 'Saira Condensed', sans-serif";
+      ctx.fillStyle = 'rgba(238,231,210,0.85)';
+      ctx.fillText(`${r.name.toUpperCase()} · ${r.dist} FT`, cx, top + 32);
+      for (let i = 0; i < BALLS_PER_ROUND; i++) {
+        ctx.beginPath();
+        ctx.arc(cx + (i - 2) * 16, top + 62, 4, 0, 7);
+        ctx.fillStyle = i < BALLS_PER_ROUND - g.ball ? '#eec73f' : 'rgba(255,255,255,0.18)';
+        ctx.fill();
+      }
+      if (g.fire) {
+        ctx.font = "700 15px 'Saira Condensed', sans-serif";
+        ctx.fillStyle = '#ff7a3c';
+        ctx.fillText(`ON FIRE ×2 · STREAK ${g.streak}`, cx, top + 76);
+      } else if (g.streak > 0) {
+        ctx.font = "600 13px 'Saira Condensed', sans-serif";
+        ctx.fillStyle = 'rgba(238,231,210,0.6)';
+        ctx.fillText(`streak ${g.streak}`, cx, top + 76);
+      }
+    }
+  }
+
+  function drawFx() {
+    for (const p of S.fx.parts) {
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 2));
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.5, 0, 7);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    for (const m of S.fx.msgs) {
+      ctx.globalAlpha = 1 - m.t;
+      ctx.font = "24px Graduate, sans-serif";
+      ctx.textAlign = 'center';
+      ctx.fillStyle = m.color;
+      ctx.fillText(m.text, view.w / 2, view.h * 0.3 - m.t * 40);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function render() {
     ctx.clearRect(0, 0, view.w, view.h);
-    drawScene(previewCam);
-    drawNet(previewCam);
-    drawRim(previewCam);
-    drawBall(previewCam, previewBall, false);
+    ctx.save();
+    if (S.fx.shake > 0) ctx.translate((Math.random() - 0.5) * S.fx.shake, (Math.random() - 0.5) * S.fx.shake);
+    drawScene(S.cam);
+    const b = S.ball;
+    const behind = b && (b.p.z > 0 || (b.made && b.p.y < RIM_Y));
+    if (b && behind) drawBall(S.cam, b, S.game && S.game.fire);
+    drawNet(S.cam);
+    drawRim(S.cam);
+    if (b && !behind) drawBall(S.cam, b, S.game && S.game.fire);
+    drawFx();
+    ctx.restore();
+    drawHUD();
   }
 
   let lastFocus = null;
@@ -476,11 +708,15 @@ function initShootout() {
     overlay.hidden = false;
     document.documentElement.classList.add('shootout-lock');
     sizeCanvas();
-    failed = false; startLoop();
+    failed = false;
+    showStart();
+    startLoop();
     closeBtn.focus();
   }
   function closeGame() {
     stopLoop();
+    ui.innerHTML = '';
+    S.mode = 'idle';
     overlay.hidden = true;
     document.documentElement.classList.remove('shootout-lock');
     (lastFocus && lastFocus.focus) ? lastFocus.focus() : playBtn.focus();
