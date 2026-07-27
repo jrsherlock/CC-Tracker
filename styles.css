@@ -730,7 +730,7 @@ main { position: relative; z-index: 1; }
 .shootout-play {
   font-family: var(--font-label); text-transform: uppercase; letter-spacing: 0.08em;
   font-size: 0.95rem; padding: 0.5rem 1.15rem; border-radius: 999px; cursor: pointer;
-  color: oklch(0.2 0.05 262); background: var(--gold);
+  color: var(--arena); background: var(--gold);
   border: 1px solid var(--gold-deep); box-shadow: 0 2px 0 var(--gold-shadow);
 }
 .shootout-play:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--gold-shadow); }
@@ -743,7 +743,7 @@ main { position: relative; z-index: 1; }
 
 .shootout-close, .shootout-mute {
   position: absolute; top: calc(0.6rem + env(safe-area-inset-top)); width: 44px; height: 44px;
-  border-radius: 50%; background: oklch(0.25 0.05 262 / 0.85); color: var(--chalk);
+  border-radius: 50%; background: color-mix(in oklch, var(--arena-shade) 85%, transparent); color: var(--chalk);
   border: 1px solid var(--arena-line); font-size: 1.05rem; z-index: 2; cursor: pointer;
 }
 .shootout-close { right: 0.7rem; }
@@ -752,7 +752,7 @@ main { position: relative; z-index: 1; }
 .shootout-ui { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 1; }
 .shootout-ui .panel {
   pointer-events: auto; text-align: center; width: min(88vw, 380px);
-  background: oklch(0.22 0.05 262 / 0.94); border: 1px solid var(--banner-edge);
+  background: color-mix(in oklch, var(--banner-deep) 94%, transparent); border: 1px solid var(--banner-edge);
   border-radius: 14px; padding: 1.4rem 1.6rem; box-shadow: 0 18px 50px oklch(0 0 0 / 0.45);
 }
 .shootout-ui h3 { font-family: var(--font-display); color: var(--gold); font-size: 1.35rem; letter-spacing: 0.04em; margin: 0 0 0.4rem; }
