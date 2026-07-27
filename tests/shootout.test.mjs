@@ -195,3 +195,39 @@ test('updateBests sorts, caps at 10, ties are not new bests, career accumulates'
   assert.equal(r.store.career.games, 14);
   assert.equal(r.store.career.makes, 14 * 4);
 });
+
+test('sweet-spot assist: a 6%-cold flick scores from 22 ft with round-1 assist, misses without', () => {
+  const h = 700, up = 2.264 * h * 0.08;         // n≈2.264 → raw power ≈ 0.94
+  const spot = spotPosition(0, 2);
+  const trail = () => [{ x: 200, y: 640, t: 1000 }, { x: 200, y: 640 - up, t: 1080 }];
+  const settle = (l) => {
+    const b = newBall(spot);
+    b.p = { ...l.p }; b.v = { ...l.v }; b.live = true;
+    for (let i = 0; i < 6 / DT && !b.done; i++) stepBall(b, DT);
+    return b;
+  };
+  assert.equal(settle(flickToLaunch(trail(), { h, spot, dist: 22, assist: 0.08 })).made, true);
+  assert.equal(settle(flickToLaunch(trail(), { h, spot, dist: 22 })).made, false);
+});
+
+test('assist window is bounded: max-power flicks stay hot', () => {
+  const h = 700, up = 4.5 * h * 0.08;           // n ≥ 4.0 → pn = 1
+  const l = flickToLaunch([{ x: 200, y: 640, t: 1000 }, { x: 200, y: 640 - up, t: 1080 }],
+    { h, spot: spotPosition(0, 2), dist: 22, assist: 0.08 });
+  assert.ok(Math.hypot(l.v.x, l.v.y, l.v.z) > 1.1 * launchSpeedFor(22, 44));
+});
+
+test('aim assist: ~3° off-line scores with assist, misses without', () => {
+  const h = 700, dyv = 2.636 * h * 0.08;        // n≈2.64 → raw power ≈ 1.0
+  const dxv = Math.tan((3 * Math.PI) / 180) * dyv;
+  const spot = spotPosition(0, 2);
+  const trail = () => [{ x: 200, y: 640, t: 1000 }, { x: 200 + dxv, y: 640 - dyv, t: 1080 }];
+  const settle = (l) => {
+    const b = newBall(spot);
+    b.p = { ...l.p }; b.v = { ...l.v }; b.live = true;
+    for (let i = 0; i < 6 / DT && !b.done; i++) stepBall(b, DT);
+    return b;
+  };
+  assert.equal(settle(flickToLaunch(trail(), { h, spot, dist: 22, assist: 0.08 })).made, true);
+  assert.equal(settle(flickToLaunch(trail(), { h, spot, dist: 22 })).made, false);
+});

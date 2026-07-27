@@ -17,7 +17,7 @@ export const REST_RIM = 0.55;
 export const REST_BOARD = 0.5;
 export const REST_FLOOR = 0.6;
 export const RELEASE_Y = 6.5;
-export const HELD_Y = 4.2;
+export const HELD_Y = 3.6;
 export const DT = 1 / 120;
 
 export function newBall(spot) {
@@ -129,9 +129,9 @@ function flightError(dist, v, th) {
 /* ------------------------------------------------------- rounds & aiming */
 export const BALLS_PER_ROUND = 5;
 export const ROUNDS = [
-  { name: 'The Arc',  dist: 22,   value: 100, spots: [-55, -28, 0, 28, 55] },
-  { name: 'Deep',     dist: 26,   value: 200, spots: [-45, -22, 0, 22, 45] },
-  { name: 'The Logo', dist: 30.5, value: 300, spots: [0, 0, 0, 0, 0] },
+  { name: 'The Arc',  dist: 22,   value: 100, assist: 0.08, spots: [-55, -28, 0, 28, 55] },
+  { name: 'Deep',     dist: 26,   value: 200, assist: 0.06, spots: [-45, -22, 0, 22, 45] },
+  { name: 'The Logo', dist: 30.5, value: 300, assist: 0.04, spots: [0, 0, 0, 0, 0] },
 ];
 export const AIM_MAX = (14 * Math.PI) / 180;
 
@@ -145,8 +145,12 @@ export function spotPosition(round, ball) {
 
 /* Gesture → launch. Uses the last ≤100 ms of the pointer trail.
    Normalized flick speed n is in canvas-heights/second so devices agree.
-   n ∈ [0.8, 3.2] maps to power 0.72–1.22 × the exact speed the distance
-   needs; a flick of n ≈ 2.1 is money. Hard flicks fly flatter (50° → 44°). */
+   n ∈ [0.9, 4.0] maps to power 0.72–1.22 × the exact speed the distance
+   needs; a flick of n ≈ 2.6 is money. Hard flicks fly flatter (50° → 44°).
+   opts.assist (fractional window, e.g. 0.08) enables the invisible
+   sweet-spot: raw power error inside the window shrinks 10× and small aim
+   errors pull toward the hoop — deeper rounds pass smaller windows. With
+   no opts.assist the mapping is exact (used by the pre-assist tests). */
 export function flickToLaunch(trail, opts) {
   if (!trail || trail.length < 2) return null;
   const end = trail[trail.length - 1];
@@ -157,11 +161,18 @@ export function flickToLaunch(trail, opts) {
   if (dts <= 0 || dy > -8) return null;                 // must move up
   const n = Math.hypot(dx, dy) / opts.h / dts;
   if (n < 0.35) return null;                            // too feeble
-  const pn = clamp((n - 0.8) / (3.2 - 0.8), 0, 1);
-  const power = 0.72 + pn * 0.5;
+  const pn = clamp((n - 0.9) / (4.0 - 0.9), 0, 1);
+  const w = opts.assist || 0;
+  let power = 0.72 + pn * 0.5;
+  const err = power - 1;
+  if (Math.abs(err) <= w) power = 1 + err * 0.1;        // sweet spot: 10× tighter
+  else power = 1 + Math.sign(err) * (w * 0.1 + (Math.abs(err) - w));
   const angle = 50 - 6 * pn;
   const speed = power * launchSpeedFor(opts.dist, angle);
-  const phi = clamp(Math.atan2(dx, -dy), -AIM_MAX, AIM_MAX);
+  let phi = clamp(Math.atan2(dx, -dy), -AIM_MAX, AIM_MAX);
+  const AIM_W = (4 * Math.PI) / 180;                    // aim magnetism band
+  if (w && Math.abs(phi) <= AIM_W) phi *= 0.25;
+  else if (w) phi = Math.sign(phi) * (AIM_W * 0.25 + (Math.abs(phi) - AIM_W));
   const beta = Math.atan2(-opts.spot.x, -opts.spot.z);  // bearing spot → rim
   const th = (angle * Math.PI) / 180, dir = beta + phi;
   return {
@@ -266,21 +277,30 @@ function initShootout() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  /* ---- camera & projection: pinhole, yawed to face the rim ---- */
-  function makeCamera(spot) {
+  /* ---- camera & projection: pinhole, pitched, yawed to face the rim ---- */
+  const CAM_PITCH = 0.19;                       // rad, ~11° downward tilt
+  const SP = Math.sin(CAM_PITCH), CP = Math.cos(CAM_PITCH);
+  const ANCHOR = 0.6;                           // camera-axis screen anchor
+
+  function makeCamera(spot, dist) {
     const yaw = Math.atan2(-spot.x, -spot.z);
+    const back = 6.5 + 0.42 * (dist - 22);      // deeper rounds pull back
     return {
       yaw, cos: Math.cos(yaw), sin: Math.sin(yaw),
-      x: spot.x - Math.sin(yaw) * 7, y: 5.6, z: spot.z - Math.cos(yaw) * 7,
+      x: spot.x - Math.sin(yaw) * back,
+      y: 5.8 + 0.14 * (dist - 22),              // ...and rise
+      z: spot.z - Math.cos(yaw) * back,
     };
   }
   function project(cam, px, py, pz) {
     const dx = px - cam.x, dy = py - cam.y, dz = pz - cam.z;
     const cz = dz * cam.cos + dx * cam.sin;
-    if (cz < 0.6) return null;
     const cx = dx * cam.cos - dz * cam.sin;
+    const cy2 = dy * CP + cz * SP;              // pitch about camera x-axis
+    const cz2 = cz * CP - dy * SP;
+    if (cz2 < 0.6) return null;
     const f = view.h * 1.15;
-    return { x: view.w / 2 + (cx * f) / cz, y: view.h * 0.66 - (dy * f) / cz, s: f / cz };
+    return { x: view.w / 2 + (cx * f) / cz2, y: view.h * ANCHOR - (cy2 * f) / cz2, s: f / cz2 };
   }
   function line3(cam, pts, close = false) {
     ctx.beginPath();
@@ -313,7 +333,7 @@ function initShootout() {
   }
 
   function drawScene(cam) {
-    const hor = view.h * 0.66;
+    const hor = view.h * (ANCHOR - 1.15 * Math.tan(CAM_PITCH));
     const sky = ctx.createLinearGradient(0, 0, 0, hor);
     sky.addColorStop(0, '#05080f');
     sky.addColorStop(1, '#101c33');
@@ -324,6 +344,12 @@ function initShootout() {
     fl.addColorStop(1, '#7d6136');
     ctx.fillStyle = fl;
     ctx.fillRect(0, hor, view.w, view.h - hor);
+
+    // hardwood planks + painted key give the floor depth
+    ctx.strokeStyle = 'rgba(40,26,12,0.18)';
+    ctx.lineWidth = 1;
+    for (let x = -24; x <= 24; x += 3) line3(cam, [[x, 0, 4], [x, 0, -46]]);
+    quad3(cam, [[-8, 0, 4], [8, 0, 4], [8, 0, -15], [-8, 0, -15]], 'rgba(16,30,56,0.5)', null);
 
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = 'rgba(240,234,214,0.42)';
@@ -484,7 +510,7 @@ function initShootout() {
 
   function setSpot(round, ballIdx) {
     S.spot = spotPosition(round, ballIdx);
-    S.cam = makeCamera(S.spot);
+    S.cam = makeCamera(S.spot, ROUNDS[round].dist);
     S.ball = newBall(S.spot);
     S.ball.pending = null;        // raise-animation clock (shell-only field)
     S.ball.storedV = null;
@@ -596,7 +622,7 @@ function initShootout() {
     if (!S.dragging) return;
     S.dragging = false;
     S.trail.push(sample(e));
-    const launch = flickToLaunch(S.trail, { h: view.h, spot: S.spot, dist: ROUNDS[S.game.round].dist });
+    const launch = flickToLaunch(S.trail, { h: view.h, spot: S.spot, dist: ROUNDS[S.game.round].dist, assist: ROUNDS[S.game.round].assist });
     S.trail = [];
     if (!launch) return;
     S.ball.storedV = launch.v;
