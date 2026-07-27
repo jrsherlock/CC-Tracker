@@ -148,7 +148,7 @@ export function spotPosition(round, ball) {
    n ∈ [0.9, 4.0] maps to power 0.72–1.22 × the exact speed the distance
    needs; a flick of n ≈ 2.6 is money. Hard flicks fly flatter (50° → 44°).
    opts.assist (fractional window, e.g. 0.08) enables the invisible
-   sweet-spot: raw power error inside the window shrinks 10× and small aim
+   sweet-spot: raw power error inside the window shrinks 20× and small aim
    errors pull toward the hoop — deeper rounds pass smaller windows. With
    no opts.assist the mapping is exact (used by the pre-assist tests). */
 export function flickToLaunch(trail, opts) {
@@ -165,8 +165,8 @@ export function flickToLaunch(trail, opts) {
   const w = opts.assist || 0;
   let power = 0.72 + pn * 0.5;
   const err = power - 1;
-  if (Math.abs(err) <= w) power = 1 + err * 0.1;        // sweet spot: 10× tighter
-  else power = 1 + Math.sign(err) * (w * 0.1 + (Math.abs(err) - w));
+  if (Math.abs(err) <= w) power = 1 + err * 0.05;       // sweet spot: 20× tighter
+  else power = 1 + Math.sign(err) * (w * 0.05 + (Math.abs(err) - w));
   const angle = 50 - 6 * pn;
   const speed = power * launchSpeedFor(opts.dist, angle);
   let phi = clamp(Math.atan2(dx, -dy), -AIM_MAX, AIM_MAX);
@@ -348,14 +348,21 @@ function initShootout() {
     // hardwood planks + painted key give the floor depth
     ctx.strokeStyle = 'rgba(40,26,12,0.18)';
     ctx.lineWidth = 1;
-    for (let x = -24; x <= 24; x += 3) line3(cam, [[x, 0, 4], [x, 0, -46]]);
+    for (let x = -24; x <= 24; x += 3) {
+      const pts = [];
+      for (let z = 4; z >= -46; z -= 2) pts.push([x, 0, z]);
+      line3(cam, pts);
+    }
     quad3(cam, [[-8, 0, 4], [8, 0, 4], [8, 0, -15], [-8, 0, -15]], 'rgba(16,30,56,0.5)', null);
 
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = 'rgba(240,234,214,0.42)';
     line3(cam, [[-25, 0, 4], [25, 0, 4]]);                                  // baseline
-    line3(cam, [[-25, 0, 4], [-25, 0, -42]]);                               // sidelines
-    line3(cam, [[25, 0, 4], [25, 0, -42]]);
+    for (const sx of [-25, 25]) {
+      const pts = [];
+      for (let z = 4; z >= -42; z -= 2) pts.push([sx, 0, z]);
+      line3(cam, pts);
+    }
     line3(cam, [[-8, 0, 4], [-8, 0, -15], [8, 0, -15], [8, 0, 4]]);         // key
     arc3(cam, 0, -15, 6, -Math.PI / 2, Math.PI / 2);                        // FT circle (front half)
     ctx.strokeStyle = 'rgba(240,234,214,0.55)';
