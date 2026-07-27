@@ -104,9 +104,10 @@ Constants (WNBA regulation, in feet):
   - Launch elevation: base 50°, eased down to ~44° as flick speed approaches
     max (hard flicks fly flatter) — gives arc feel without a second control.
 - Per-round tuning maps a comfortable mid-strength flick to rim distance:
-  required vacuum speed at 48° is ~24.5 ft/s (22 ft), ~26.8 ft/s (26 ft),
-  ~29 ft/s (30.5 ft) — the gesture→speed scale shifts each round so deeper
-  rounds need genuinely harder, cleaner flicks.
+  the exact launch speed needed per distance is solved numerically from the
+  dragful simulation itself (binary search until the flight crosses rim
+  height at the ring's center), so gesture tuning always agrees with the
+  physics — and deeper rounds need genuinely harder, cleaner flicks.
 - Downward/backward gestures and taps without movement are ignored (no shot).
 
 ## Game format & scoring
