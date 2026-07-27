@@ -565,8 +565,70 @@ function initShootout() {
     });
   }
 
-  const noop = () => {};
-  let sfx = { bounce: noop, clank: noop, board: noop, swish: noop, score: noop, fire: noop, buzzer: noop };
+  function makeSfx(isMuted) {
+    let ac = null;
+    function ctx2() {
+      if (!ac) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        ac = new AC();
+      }
+      if (ac.state === 'suspended') ac.resume();
+      return ac;
+    }
+    function tone({ type = 'sine', f0 = 440, f1 = f0, t = 0.1, g = 0.25, when = 0 }) {
+      const c = ctx2();
+      if (!c || isMuted()) return;
+      const o = c.createOscillator(), v = c.createGain(), n = c.currentTime + when;
+      o.type = type;
+      o.frequency.setValueAtTime(f0, n);
+      o.frequency.exponentialRampToValueAtTime(Math.max(f1, 1), n + t);
+      v.gain.setValueAtTime(g, n);
+      v.gain.exponentialRampToValueAtTime(0.001, n + t);
+      o.connect(v).connect(c.destination);
+      o.start(n);
+      o.stop(n + t + 0.02);
+    }
+    function noise({ t = 0.15, g = 0.3, f = 1800, q = 1, slide = 0 }) {
+      const c = ctx2();
+      if (!c || isMuted()) return;
+      const len = Math.max(1, (t * c.sampleRate) | 0);
+      const buf = c.createBuffer(1, len, c.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const bp = c.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+      if (slide) bp.frequency.exponentialRampToValueAtTime(slide, c.currentTime + t);
+      const v = c.createGain();
+      v.gain.setValueAtTime(g, c.currentTime);
+      v.gain.exponentialRampToValueAtTime(0.001, c.currentTime + t);
+      src.connect(bp).connect(v).connect(c.destination);
+      src.start();
+    }
+    return {
+      bounce: () => tone({ f0: 110, f1: 60, t: 0.08, g: 0.35 }),
+      clank: () => { tone({ type: 'square', f0: 210, f1: 150, t: 0.1, g: 0.2 }); noise({ t: 0.09, f: 900, g: 0.25 }); },
+      board: () => tone({ f0: 160, f1: 120, t: 0.07, g: 0.25 }),
+      swish: () => noise({ t: 0.22, f: 2600, slide: 500, g: 0.35, q: 0.8 }),
+      score: () => { tone({ f0: 660, t: 0.09, g: 0.2 }); tone({ f0: 990, t: 0.12, g: 0.18, when: 0.07 }); },
+      fire: () => { noise({ t: 0.5, f: 500, slide: 2400, g: 0.35 }); tone({ type: 'sawtooth', f0: 180, f1: 420, t: 0.4, g: 0.12 }); },
+      buzzer: () => tone({ type: 'square', f0: 190, f1: 170, t: 0.5, g: 0.25 }),
+    };
+  }
+  const sfx = makeSfx(() => S.store.muted);
+
+  function syncMute() {
+    muteBtn.textContent = S.store.muted ? '🔇' : '🔊';
+    muteBtn.setAttribute('aria-pressed', String(S.store.muted));
+  }
+  muteBtn.addEventListener('click', () => {
+    S.store.muted = !S.store.muted;
+    saveStore(S.store);
+    syncMute();
+  });
+  syncMute();
 
   function setSpot(round, ballIdx) {
     S.spot = spotPosition(round, ballIdx);
