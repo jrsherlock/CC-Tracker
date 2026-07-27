@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   newBall, stepBall, collideRim, collideBoard, launchSpeedFor,
   RELEASE_Y, RIM_Y, RIM_R, BALL_R, RIM_TUBE, REST_RIM, BOARD_Z, DT,
+  ROUNDS, BALLS_PER_ROUND, AIM_MAX, spotPosition, flickToLaunch,
 } from '../shootout.js';
 
 // launch a ball from `dist` ft straight at the hoop and settle it
@@ -84,4 +85,54 @@ test('upward crossing through the ring is not a make', () => {
   b.v = { x: 0, y: 12, z: 0 };
   stepBall(b, DT);
   assert.equal(b.made, false);
+});
+
+const upFlick = (px, ms) => [{ x: 200, y: 600, t: 1000 }, { x: 200, y: 600 - px, t: 1000 + ms }];
+
+test('rounds ladder: 22/26/30.5 ft at 100/200/300, five spots each', () => {
+  assert.equal(ROUNDS.length, 3);
+  assert.deepEqual(ROUNDS.map((r) => r.dist), [22, 26, 30.5]);
+  assert.deepEqual(ROUNDS.map((r) => r.value), [100, 200, 300]);
+  for (const r of ROUNDS) assert.equal(r.spots.length, BALLS_PER_ROUND);
+  const top = spotPosition(0, 2);
+  assert.ok(Math.abs(top.x) < 1e-9 && Math.abs(top.z + 22) < 1e-9);
+});
+
+test('straight flick from the top launches dead ahead', () => {
+  const l = flickToLaunch(upFlick(300, 80), { h: 700, spot: spotPosition(0, 2), dist: 22 });
+  assert.ok(l);
+  assert.ok(l.v.z > 0 && l.v.y > 0);
+  assert.ok(Math.abs(l.v.x) < 1e-9);
+  assert.equal(l.p.y, RELEASE_Y);
+});
+
+test('corner spot: straight flick aims at the hoop', () => {
+  const spot = spotPosition(0, 0);
+  const l = flickToLaunch(upFlick(300, 80), { h: 700, spot, dist: 22 });
+  const dot = (l.v.x * -spot.x + l.v.z * -spot.z) /
+    (Math.hypot(l.v.x, l.v.z) * Math.hypot(spot.x, spot.z));
+  assert.ok(dot > 0.9999, 'horizontal velocity points from spot to rim');
+});
+
+test('harder flick flies faster, capped at 1.22× the needed speed', () => {
+  const o = { h: 700, spot: spotPosition(0, 2), dist: 22 };
+  const speed = (l) => Math.hypot(l.v.x, l.v.y, l.v.z);
+  const soft = flickToLaunch(upFlick(180, 100), o);
+  const hard = flickToLaunch(upFlick(500, 60), o);
+  assert.ok(speed(hard) > speed(soft));
+  const max = flickToLaunch(upFlick(3000, 30), o);
+  assert.ok(speed(max) <= 1.22 * launchSpeedFor(22, 44) + 1e-6);
+});
+
+test('sideways gesture steers, clamped to ±14°', () => {
+  const t = [{ x: 200, y: 600, t: 0 }, { x: 500, y: 300, t: 80 }]; // 45° up-right
+  const l = flickToLaunch(t, { h: 700, spot: spotPosition(0, 2), dist: 22 });
+  assert.ok(Math.abs(Math.atan2(l.v.x, l.v.z) - AIM_MAX) < 1e-6);
+});
+
+test('downward or feeble gestures do not shoot', () => {
+  const o = { h: 700, spot: spotPosition(0, 2), dist: 22 };
+  assert.equal(flickToLaunch([{ x: 0, y: 0, t: 0 }, { x: 0, y: 80, t: 80 }], o), null);
+  assert.equal(flickToLaunch([{ x: 0, y: 0, t: 0 }, { x: 0, y: -4, t: 80 }], o), null);
+  assert.equal(flickToLaunch([{ x: 0, y: 0, t: 0 }], o), null);
 });

@@ -125,3 +125,52 @@ function flightError(dist, v, th) {
   }
   return -dist; // never got there: way short
 }
+
+/* ------------------------------------------------------- rounds & aiming */
+export const BALLS_PER_ROUND = 5;
+export const ROUNDS = [
+  { name: 'The Arc',  dist: 22,   value: 100, spots: [-55, -28, 0, 28, 55] },
+  { name: 'Deep',     dist: 26,   value: 200, spots: [-45, -22, 0, 22, 45] },
+  { name: 'The Logo', dist: 30.5, value: 300, spots: [0, 0, 0, 0, 0] },
+];
+export const AIM_MAX = (14 * Math.PI) / 180;
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+export function spotPosition(round, ball) {
+  const r = ROUNDS[round];
+  const a = (r.spots[ball] * Math.PI) / 180;
+  return { x: Math.sin(a) * r.dist, z: -Math.cos(a) * r.dist };
+}
+
+/* Gesture → launch. Uses the last ≤100 ms of the pointer trail.
+   Normalized flick speed n is in canvas-heights/second so devices agree.
+   n ∈ [0.8, 3.2] maps to power 0.72–1.22 × the exact speed the distance
+   needs; a flick of n ≈ 2.1 is money. Hard flicks fly flatter (50° → 44°). */
+export function flickToLaunch(trail, opts) {
+  if (!trail || trail.length < 2) return null;
+  const end = trail[trail.length - 1];
+  let i = trail.length - 1;
+  while (i > 0 && end.t - trail[i - 1].t <= 100) i--;
+  const s0 = trail[i];
+  const dx = end.x - s0.x, dy = end.y - s0.y, dts = (end.t - s0.t) / 1000;
+  if (dts <= 0 || dy > -8) return null;                 // must move up
+  const n = Math.hypot(dx, dy) / opts.h / dts;
+  if (n < 0.35) return null;                            // too feeble
+  const pn = clamp((n - 0.8) / (3.2 - 0.8), 0, 1);
+  const power = 0.72 + pn * 0.5;
+  const angle = 50 - 6 * pn;
+  const speed = power * launchSpeedFor(opts.dist, angle);
+  const phi = clamp(Math.atan2(dx, -dy), -AIM_MAX, AIM_MAX);
+  const beta = Math.atan2(-opts.spot.x, -opts.spot.z);  // bearing spot → rim
+  const th = (angle * Math.PI) / 180, dir = beta + phi;
+  return {
+    p: { x: opts.spot.x, y: RELEASE_Y, z: opts.spot.z },
+    v: {
+      x: speed * Math.cos(th) * Math.sin(dir),
+      y: speed * Math.sin(th),
+      z: speed * Math.cos(th) * Math.cos(dir),
+    },
+    power: pn,
+  };
+}
