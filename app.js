@@ -654,7 +654,7 @@ function renderClarkLastGame(rows) {
     <div class="line">
       <span><b>${g.pts}</b> PTS</span>
       <span><b>${g.ast}</b> AST</span>
-      <span>${g.reb >= 10 ? `<b>${g.reb}</b>` : g.reb} REB</span>
+      <span><b>${g.reb}</b> REB</span>
       <span>${esc(g.tp)} 3PT</span>
       <span class="chip ${g.result === 'W' ? 'w' : 'l'}">${esc(g.result || '—')}</span>
       <span>${esc(g.score)}</span>
