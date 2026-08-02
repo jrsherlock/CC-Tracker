@@ -645,7 +645,9 @@ function renderClarkLastGame(rows) {
   const notes = [];
   if (g.pts >= ptsHigh) notes.push('Season-high points');
   if (g.ast >= astHigh) notes.push('Season-high assists');
-  if (g.pts >= 10 && g.ast >= 10) notes.push('Double-double');
+  const doubles = [g.pts, g.reb, g.ast].filter(v => v >= 10).length;
+  if (doubles >= 3) notes.push('Triple-double');
+  else if (doubles === 2) notes.push('Double-double');
   el.hidden = false;
   el.innerHTML = `
     <div class="lab">Last game · ${g.home ? 'vs' : 'at'} ${esc(g.opp)} · ${fmtDay(g.date)}</div>
