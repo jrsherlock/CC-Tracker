@@ -1,11 +1,11 @@
 /* CC Tracker service worker: offline shell + last-known data + push. */
 'use strict';
 
-const VERSION = 'v5';
+const VERSION = 'v6';
 const SHELL_CACHE = `cc-shell-${VERSION}`;
 const DATA_CACHE = `cc-data-${VERSION}`;
 const ASSET_CACHE = `cc-assets-${VERSION}`;
-const SHELL = ['/', '/styles.css?v=7', '/app.js?v=6', '/shootout.js?v=1', '/manifest.webmanifest', '/favicon.svg', '/icons/icon-192.png', '/icons/badge-96.png'];
+const SHELL = ['/', '/styles.css?v=7', '/app.js?v=7', '/shootout.js?v=1', '/manifest.webmanifest', '/favicon.svg', '/icons/icon-192.png', '/icons/badge-96.png'];
 
 const DATA_HOSTS = ['site.api.espn.com', 'site.web.api.espn.com'];
 const ASSET_HOSTS = ['a.espncdn.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
